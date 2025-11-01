@@ -63,7 +63,7 @@
 #define FRONT_LOADER_DEPLOYED_POSITION    -66    // Deployed position (close to observed physical limit)
 
 // Front loader motor configuration
-#define FRONT_LOADER_MOTOR_SPEED          80     // Motor speed in RPM (reduced to prevent stalling)
+#define FRONT_LOADER_MOTOR_SPEED          150    // Motor speed in RPM (increased for more responsive movement)
 #define FRONT_LOADER_POSITION_TOLERANCE   3      // Position tolerance in degrees (increased)
 #define FRONT_LOADER_GEAR_RATIO          12.0    // Gear ratio (72 teeth / 6 teeth = 12:1)
 #define FRONT_LOADER_REVERSE_MOTOR       true    // Set to true if motor moves in wrong direction
@@ -95,9 +95,9 @@
 #define BACK_EXECUTE_BUTTON       pros::E_CONTROLLER_DIGITAL_R1  // Execute selected mode - back
 #define FRONT_EXECUTE_BUTTON      pros::E_CONTROLLER_DIGITAL_R2  // Execute selected mode - front
 
-// Additional controls for testing individual indexers (NOTE: L1/L2 now used for front loader fine adjustment)
-#define LEFT_INDEXER_TEST_BUTTON  pros::E_CONTROLLER_DIGITAL_L1   // Test left indexer (OVERRIDDEN by front loader)
-#define RIGHT_INDEXER_TEST_BUTTON pros::E_CONTROLLER_DIGITAL_L2   // Test right indexer (OVERRIDDEN by front loader)
+// Front loader fine adjustment controls 
+#define FRONT_LOADER_UP_BUTTON    pros::E_CONTROLLER_DIGITAL_L1   // Adjust front loader position UP
+#define FRONT_LOADER_DOWN_BUTTON  pros::E_CONTROLLER_DIGITAL_L2   // Adjust front loader position DOWN
 
 // PTO control (if still needed) - moved to UP button
 #define PTO_TOGGLE_BUTTON         pros::E_CONTROLLER_DIGITAL_UP   // PTO toggle (optional)
@@ -105,10 +105,13 @@
 // Intake mechanism control - DOWN button
 #define INTAKE_TOGGLE_BUTTON      pros::E_CONTROLLER_DIGITAL_DOWN // Intake toggle (deploy/retract to preset positions)
 
-// Front loader fine adjustment controls (overrides indexer testing)
-// L1: Adjust front loader position +1 degree
-// L2: Adjust front loader position -1 degree
+// Front loader fine adjustment controls
+// L1: Adjust front loader position +FRONT_LOADER_ADJUST_AMOUNT degrees (UP)
+// L2: Adjust front loader position -FRONT_LOADER_ADJUST_AMOUNT degrees (DOWN)
 // DOWN: Reset to original deployed/retracted position (toggles between presets)
+
+// Front loader adjustment amount for L1/L2 buttons
+#define FRONT_LOADER_ADJUST_AMOUNT 5  // Degrees to adjust per button press (5 degrees = noticeable movement)
 
 // Storage scoring control - LEFT button
 #define STORAGE_TOGGLE_BUTTON     pros::E_CONTROLLER_DIGITAL_LEFT // Toggle score from top storage mode

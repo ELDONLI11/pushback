@@ -217,18 +217,7 @@ public:
      */
     const char* getDirectionString() const;
 
-    // Testing functions for individual indexer control
-    /**
-     * Test left indexer motor (left middle wheel) - for testing only
-     * @param speed Motor speed in RPM (positive or negative)
-     */
-    void testLeftIndexer(int speed);
-
-    /**
-     * Test right indexer motor (right middle wheel) - for testing only  
-     * @param speed Motor speed in RPM (positive or negative)
-     */
-    void testRightIndexer(int speed);
+  
 
     /**
      * Stop left indexer motor - for testing only

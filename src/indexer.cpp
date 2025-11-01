@@ -546,44 +546,6 @@ void IndexerSystem::update(pros::Controller& controller) {
         force_display_update = true;  // Force immediate display update
     }
     
-    // Testing controls for individual indexers
-    static bool last_left_test_button = false;
-    static bool last_right_test_button = false;
-    bool current_left_test_button = controller.get_digital(LEFT_INDEXER_TEST_BUTTON);
-    bool current_right_test_button = controller.get_digital(RIGHT_INDEXER_TEST_BUTTON);
-    
-    // Left indexer testing (Y button)
-    if (current_left_test_button && !last_left_test_button) {
-        // Toggle left indexer: forward speed first press, reverse second press, stop third press
-        static int left_test_state = 0;
-        left_test_state = (left_test_state + 1) % 3;
-        
-        switch (left_test_state) {
-            case 0: stopLeftIndexer(); break;
-            case 1: testLeftIndexer(100); break;  // Forward 100 RPM
-            case 2: testLeftIndexer(-100); break; // Reverse 100 RPM
-        }
-        controller.rumble(".");
-    }
-    
-    // Right indexer testing (UP button)  
-    if (current_right_test_button && !last_right_test_button) {
-        // Toggle right indexer: forward speed first press, reverse second press, stop third press
-        static int right_test_state = 0;
-        right_test_state = (right_test_state + 1) % 3;
-        
-        switch (right_test_state) {
-            case 0: stopRightIndexer(); break;
-            case 1: testRightIndexer(100); break;  // Forward 100 RPM
-            case 2: testRightIndexer(-100); break; // Reverse 100 RPM
-        }
-        controller.rumble(".");
-    }
-    
-    // Update test button states
-    last_left_test_button = current_left_test_button;
-    last_right_test_button = current_right_test_button;
-    
     // IMPORTANT: Add timeout mechanism for low goal mode to prevent system from getting stuck
     if (scoring_active && current_mode == ScoringMode::LOW_GOAL) {
         // Automatic timeout for low goal mode after 3 seconds
@@ -792,38 +754,6 @@ void IndexerSystem::stopTopIndexer() {
     top_indexer.move(0);
 }
 
-// Testing functions for individual indexer control
-void IndexerSystem::testLeftIndexer(int speed) {
-    // Ensure PTO is in scorer mode to control left middle wheel
-    if (pto_system && pto_system->isDrivetrainMode()) {
-        pto_system->setScorerMode();
-        pros::delay(100); // Give pneumatics time to actuate
-    }
-    
-    // Create motor object for LEFT middle wheel WITHOUT automatic reversal for direct control
-    pros::Motor left_middle(LEFT_MIDDLE_MOTOR_PORT, DRIVETRAIN_GEARSET);
-    
-    // Run left middle wheel for testing with direct speed control
-    left_middle.move(speed);
-    
-    // LCD call removed to prevent rendering conflicts
-}
-
-void IndexerSystem::testRightIndexer(int speed) {
-    // Ensure PTO is in scorer mode to control right middle wheel  
-    if (pto_system && pto_system->isDrivetrainMode()) {
-        pto_system->setScorerMode();
-        pros::delay(100); // Give pneumatics time to actuate
-    }
-    
-    // Create motor object for RIGHT middle wheel WITHOUT automatic reversal for direct control
-    pros::Motor right_middle(RIGHT_MIDDLE_MOTOR_PORT, DRIVETRAIN_GEARSET);
-    
-    // Run right middle wheel for testing with direct speed control
-    right_middle.move(speed);
-    
-    // LCD call removed to prevent rendering conflicts
-}
 
 void IndexerSystem::stopLeftIndexer() {
     // Stop LEFT middle wheel with direct motor control

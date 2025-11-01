@@ -178,6 +178,17 @@ void Intake::update(pros::Controller& controller) {
     bool current_l1_button_state = controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1);
     bool current_l2_button_state = controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2);
     
+    // Debug: Print button states every second
+    static uint32_t last_debug_print = 0;
+    uint32_t current_time = pros::millis();
+    if (current_time - last_debug_print > 1000) {
+        printf("Front Loader Button States: L1=%s L2=%s DOWN=%s\n", 
+               current_l1_button_state ? "PRESSED" : "released",
+               current_l2_button_state ? "PRESSED" : "released", 
+               current_button_state ? "PRESSED" : "released");
+        last_debug_print = current_time;
+    }
+    
     // Check for toggle button press (rising edge detection) - resets to original position
     if (current_button_state && !last_button_state) {
         printf("Front Loader: Toggle button pressed! Resetting to original position\n");
@@ -191,27 +202,31 @@ void Intake::update(pros::Controller& controller) {
         controller.rumble("..");
     }
     
-    // Check for L1 button press (rising edge detection) - adjust +1 degree
+    // Check for L1 button press (rising edge detection) - adjust +FRONT_LOADER_ADJUST_AMOUNT degrees
     if (current_l1_button_state && !last_l1_button_state) {
-        printf("Front Loader: L1 pressed! Adjusting +1 degree\n");
+        printf("========== FRONT LOADER L1 BUTTON PRESSED ==========\n");
+        printf("Front Loader: L1 pressed! Adjusting +%d degrees\n", FRONT_LOADER_ADJUST_AMOUNT);
         printf("  Before adjustment - Position: %.1f°, Target: %.1f°\n", getPosition(), front_loader_target_position);
         
-        adjustPosition(1.0);
+        adjustPosition(FRONT_LOADER_ADJUST_AMOUNT);
         
         printf("  After adjustment - New Target: %.1f°\n", front_loader_target_position);
+        printf("================================================\n");
         
         // Provide brief haptic feedback
         controller.rumble(".");
     }
     
-    // Check for L2 button press (rising edge detection) - adjust -1 degree
+    // Check for L2 button press (rising edge detection) - adjust -FRONT_LOADER_ADJUST_AMOUNT degrees
     if (current_l2_button_state && !last_l2_button_state) {
-        printf("Front Loader: L2 pressed! Adjusting -1 degree\n");
+        printf("========== FRONT LOADER L2 BUTTON PRESSED ==========\n");
+        printf("Front Loader: L2 pressed! Adjusting -%d degrees\n", FRONT_LOADER_ADJUST_AMOUNT);
         printf("  Before adjustment - Position: %.1f°, Target: %.1f°\n", getPosition(), front_loader_target_position);
         
-        adjustPosition(-1.0);
+        adjustPosition(-FRONT_LOADER_ADJUST_AMOUNT);
         
         printf("  After adjustment - New Target: %.1f°\n", front_loader_target_position);
+        printf("================================================\n");
         
         // Provide brief haptic feedback
         controller.rumble(".");
@@ -224,7 +239,6 @@ void Intake::update(pros::Controller& controller) {
     
     // Continuous position monitoring (every 100ms to avoid spam)
     static uint32_t last_debug_time = 0;
-    uint32_t current_time = pros::millis();
     if (current_time - last_debug_time > 100) {
         double current_pos = getPosition();
         double motor_pos = getMotorPosition();
@@ -252,10 +266,14 @@ void Intake::update(pros::Controller& controller) {
         last_debug_time = current_time;
     }
     
-    // Check if we're at target position and stop motor if so
-    if (isAtTarget()) {
+    // Check if we're at target position and stop motor if so (only brake once to avoid interference)
+    static bool was_at_target = false;
+    bool currently_at_target = isAtTarget();
+    if (currently_at_target && !was_at_target) {
         front_loader_motor.brake();
+        printf("Front Loader: Reached target position %.1f°, motor braked\n", front_loader_target_position);
     }
+    was_at_target = currently_at_target;
 }
 
 const char* Intake::getCurrentStateString() const {
