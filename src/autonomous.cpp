@@ -157,9 +157,10 @@ bool AutoSelector::isModeConfirmed() {
     return mode_confirmed;
 }
 
-void AutoSelector::update() {
+bool AutoSelector::update() {
     handleInput();
     displayOptions();
+    return mode_confirmed;  // Return true when mode is confirmed
 }
 
 // =============================================================================

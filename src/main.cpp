@@ -107,8 +107,14 @@ void initialize() {
 		
 		// Allow 10 seconds for selection in development mode
 		int countdown = 500; // 500 * 20ms = 10 seconds
+		bool mode_confirmed = false;
 		while (countdown > 0) {
-			autonomous_system->getSelector().update();
+			if (autonomous_system->getSelector().update()) {
+				// Mode confirmed, stop immediately
+				printf("Mode confirmed early, stopping selection countdown\n");
+				mode_confirmed = true;
+				break;
+			}
 			
 			// Update countdown display every 0.5 seconds
 			if (countdown % 25 == 0) {
@@ -119,11 +125,32 @@ void initialize() {
 			pros::delay(20);
 		}
 		
+		// If a mode was selected/confirmed, run it immediately
+		if (mode_confirmed || autonomous_system->getSelector().isModeConfirmed()) {
+			AutoMode selected_mode = autonomous_system->getSelector().getSelectedMode();
+			printf("=== RUNNING SELECTED AUTONOMOUS MODE: %d ===\n", static_cast<int>(selected_mode));
+			
+			// Show execution status on controller
+			master->set_text(0, 0, "RUNNING AUTO");
+			master->print(1, 0, "Mode: %d", static_cast<int>(selected_mode));
+			pros::delay(1000);
+			
+			// Run the selected autonomous mode
+			autonomous_system->runAutonomous();
+			
+			// Show completion
+			master->set_text(0, 0, "AUTO COMPLETE");
+			master->set_text(1, 0, "Entering OpControl");
+			pros::delay(2000);
+			
+			printf("=== AUTONOMOUS EXECUTION COMPLETE ===\n");
+		}
+		
 		master->set_text(0, 0, "READY");
-		master->set_text(1, 0, "L1+L2 to test");
+		master->set_text(1, 0, "R1+R2 to change");
 		pros::delay(1000);
 		
-		printf("Development selection complete. Use L1+L2 to test or R1+R2 to change.\n");
+		printf("Development selection complete. Use R1+R2 to change autonomous mode.\n");
 	} else {
 		printf("Competition mode detected - selection will happen in disabled() period\n");
 		master->set_text(0, 0, "COMPETITION");
@@ -189,8 +216,12 @@ void disabled() {
 		
 		// Allow 10 seconds for selection in development mode
 		int countdown = 500; // 500 * 20ms = 10 seconds
-		while (countdown > 0 && !autonomous_system->getSelector().isModeConfirmed()) {
-			autonomous_system->getSelector().update();
+		while (countdown > 0) {
+			if (autonomous_system->getSelector().update()) {
+				// Mode confirmed, stop immediately
+				printf("Mode confirmed in disabled mode, stopping selection countdown\n");
+				break;
+			}
 			
 			// Update countdown display
 			if (countdown % 25 == 0) { // Update every 0.5 seconds
@@ -206,9 +237,13 @@ void disabled() {
 		// pros::delay(1000);  // REMOVED: No delay after selection
 	} else {
 		// Competition mode - continuous loop during disabled period
-		while (pros::competition::is_disabled() && !autonomous_system->getSelector().isModeConfirmed()) {
+		while (pros::competition::is_disabled()) {
 			// Update autonomous selector (UP/DOWN/A buttons work here)
-			autonomous_system->getSelector().update();
+			if (autonomous_system->getSelector().update()) {
+				// Mode confirmed, stop immediately
+				printf("Mode confirmed in competition disabled mode\n");
+				break;
+			}
 			
 			// Small delay to prevent overwhelming the system
 			pros::delay(20);
@@ -313,82 +348,6 @@ void opcontrol() {
 		counter++;
 		lcd_update_counter++;
 
-		// Check for autonomous testing (L1+L2 = run selected autonomous)
-		if (master->get_digital(pros::E_CONTROLLER_DIGITAL_L1) && 
-			master->get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
-			
-			printf("=== L1+L2 PRESSED - TESTING AUTONOMOUS ===\n");
-			
-			// Check if autonomous system is properly initialized
-			if (!autonomous_system) {
-				printf("ERROR: autonomous_system is NULL!\n");
-				master->set_text(0, 0, "ERROR: NO AUTO SYS");
-				pros::delay(2000);
-				continue;
-			}
-			
-			// Get currently selected mode
-			AutoMode current_mode = autonomous_system->getSelector().getSelectedMode();
-			printf("Current selected mode: %d\n", static_cast<int>(current_mode));
-			
-			// Show current selection and confirm
-			master->set_text(0, 0, "TEST CURRENT AUTO");
-			master->print(1, 0, "Mode: %d", static_cast<int>(current_mode));
-			
-			// Wait for buttons to be released
-			while (master->get_digital(pros::E_CONTROLLER_DIGITAL_L1) || 
-				   master->get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
-				pros::delay(20);
-			}
-			
-			// Show test execution warning with ASCII art
-			displayControllerArt("LOADING", "Stand Clear!");
-			pros::delay(2000);
-			
-			// PREPARE FOR AUTONOMOUS TRANSITION
-			printf("=== PREPARING AUTONOMOUS TRANSITION ===\n");
-			
-			// 1. Stop all current drivetrain activity
-			custom_drivetrain->stop();
-			printf("✓ Stopped custom drivetrain\n");
-			
-			// 2. Ensure PTO is in correct state for autonomous (SCORING MODE - middle wheels for scoring)
-			if (pto_system) {
-				if (pto_system->isDrivetrainMode()) {
-					printf("Setting PTO to scorer mode for autonomous (middle wheels for scoring)...\n");
-					pto_system->setScorerMode(); // This puts middle wheels in scoring position
-					pros::delay(300); // Allow pneumatics to actuate
-				}
-				printf("✓ PTO in scorer mode (autonomous uses 2-wheel drive + middle wheels for scoring)\n");
-			}
-			
-			// 3. Re-initialize LemLib if needed (fresh start)
-			printf("Re-initializing LemLib for clean autonomous start...\n");
-			chassis->setPose(0, 0, 0); // Reset odometry
-			pros::delay(100);
-			printf("✓ LemLib reset complete\n");
-			
-			printf("About to call autonomous_system->runAutonomous()\n");
-			// Run autonomous
-			autonomous_system->runAutonomous();
-			printf("Returned from autonomous_system->runAutonomous()\n");
-			
-			// RESTORE OPCONTROL STATE
-			printf("=== RESTORING OPCONTROL STATE ===\n");
-			
-			// 1. Stop any residual LemLib activity
-			// LemLib should handle this automatically, but ensure motors are stopped
-			pros::delay(100);
-			
-			// 2. Reset custom drivetrain brake modes for opcontrol
-			custom_drivetrain->setBrakeMode(DRIVETRAIN_BRAKE_MODE); // Coast mode
-			printf("✓ Restored opcontrol brake mode\n");
-			
-			// Back to driver control with success indicator
-			displayControllerArt("SUCCESS", "Test Complete!");
-			pros::delay(2000);
-		}
-
 		// Check for autonomous mode change (R1+R2 = change autonomous mode)
 		if (master->get_digital(pros::E_CONTROLLER_DIGITAL_R1) && 
 			master->get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
@@ -399,13 +358,17 @@ void opcontrol() {
 			
 			while (master->get_digital(pros::E_CONTROLLER_DIGITAL_R1) || 
 				   master->get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
-				autonomous_system->getSelector().update();
+				if (autonomous_system->getSelector().update()) {
+					// Mode confirmed, stop immediately
+					printf("Mode confirmed during driver control change\n");
+					break;
+				}
 				pros::delay(20);
 			}
 			
 			// Show completion
 			master->set_text(0, 0, "MODE CHANGED");
-			master->set_text(1, 0, "L1+L2 to test");
+			master->set_text(1, 0, "Ready for testing");
 			pros::delay(2000);
 		}
 

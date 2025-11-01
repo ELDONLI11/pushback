@@ -57,7 +57,7 @@ public:
     void handleInput();
     AutoMode getSelectedMode();
     bool isModeConfirmed();
-    void update();
+    bool update();  // Now returns true when mode is confirmed
 };
 
 /**
