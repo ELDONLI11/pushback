@@ -247,106 +247,7 @@ void AutonomousSystem::stopAllMovement() {
 // Autonomous Route Implementations (Placeholders - to be developed)
 // =============================================================================
 
-void AutonomousSystem::executeRedLeftAWP() {
-    printf("Executing Red Left AWP Route (Mirrored from proven Red Right route)\n");
-    autonomous_running = true;
 
-    // VERIFY PTO is in scorer mode (should already be set, but double-check)
-    if (pto_system && !pto_system->isDrivetrainMode()) {
-        printf("✅ Confirmed: PTO in scorer mode - middle wheels ready for scoring\n");
-    } else {
-        printf("⚠️  WARNING: PTO not in expected scorer mode - forcing scorer mode\n");
-        pto_system->setScorerMode();
-        pros::delay(200);
-    }
-
-    // Set starting pose for LEFT side (mirror of Red Right's 60°)
-    chassis->setPose(0, 0, 120);  // 120° = northwest direction (mirror of 60°)
-
-    // START INTAKE
-    indexer_system->startInput();
-
-    // Move forward ~35.5" at mirrored angle (120° instead of 60°)
-    chassis->moveToPoint(35.5 * sin(120 * M_PI / 180.0), 35.5 * cos(120 * M_PI / 180.0), 5000);
-    chassis->waitUntilDone();
-    
-    pros::delay(100);
-    
-    // Turn to 180° (same as Red Right - facing toward red alliance)
-    chassis->turnToHeading(180, 3000);
-    chassis->waitUntilDone();
-    
-    pros::delay(100);
-
-    // Back up ~12" (same positioning logic)
-    auto pose = chassis->getPose();
-    chassis->moveToPoint(pose.x - 12 * sin(180 * M_PI / 180.0), 
-                       pose.y - 12 * cos(180 * M_PI / 180.0), 3000);
-    chassis->waitUntilDone();
-
-    // BACKSCORING MIDDLE - execute indexer back scoring sequence
-    indexer_system->setMidGoalMode();
-    indexer_system->executeBack();
-    pros::delay(700); // brief pause for scoring
-    indexer_system->stopAll();
-
-    pros::delay(50);
-    
-    // Continue with mirrored navigation pattern
-    pose = chassis->getPose();
-    chassis->moveToPoint(pose.x + 27 * sin(pose.theta * M_PI / 180.0),
-                       pose.y + 27 * cos(pose.theta * M_PI / 180.0), 3000);
-    chassis->waitUntilDone();
-    
-    // Mirror of 160° → 200° (opposite side approach)
-    chassis->turnToHeading(200, 3000);
-    chassis->waitUntilDone();
-    
-    pros::delay(50);
-    
-    pose = chassis->getPose();
-    chassis->moveToPoint(pose.x + 22 * sin(pose.theta * M_PI / 180.0),
-                       pose.y + 22 * cos(pose.theta * M_PI / 180.0), 3000);
-    chassis->waitUntilDone();
-    
-    pros::delay(50);
-    
-    // Mirror of 225° → 315° (approach match load from left side)
-    chassis->turnToHeading(315, 3000);
-    chassis->waitUntilDone();
-    
-    pose = chassis->getPose();
-    chassis->moveToPoint(pose.x + 23.5 * sin(pose.theta * M_PI / 180.0),
-                       pose.y + 23.5 * cos(pose.theta * M_PI / 180.0), 3000);
-    chassis->waitUntilDone();
-
-    pros::delay(1000);
-    
-    // START INTAKE FROM MATCH LOAD (left side)
-    indexer_system->startInput();
-
-    // Mirror of 231° → 309° (approach from left match load zone)
-    chassis->turnToHeading(309, 3000);
-    chassis->waitUntilDone();
-    
-    pose = chassis->getPose();
-    chassis->moveToPoint(pose.x - 35 * sin(pose.theta * M_PI / 180.0),
-                       pose.y - 35 * cos(pose.theta * M_PI / 180.0), 3000);
-    chassis->waitUntilDone();
-
-    pros::delay(50);
-
-    // TOP BACKSCORING - use back/top indexer (same as Red Right)
-    indexer_system->setTopGoalMode();
-    indexer_system->executeBack();
-    pros::delay(1200);
-    indexer_system->stopAll();
-
-    printf("Red Left AWP finished!\n");
-
-    autonomous_running = false;
-    printf("Red Left AWP Route Complete\n");
-}
 
 void AutonomousSystem::executeRedLeftBonus() {
     printf("Executing Red Left BONUS Route (AWP + Maximum Points - Mirrored)\n");
@@ -437,7 +338,7 @@ void AutonomousSystem::executeRedLeftBonus() {
     printf("Red Left BONUS Route Complete - Maximum Points + AWP achieved\n");
 }
 
-void AutonomousSystem::executeRedRightAWP() {
+void AutonomousSystem::executeRedLeftAWP() {
     printf("Executing Red Right AWP Route (Original working route moved here)\n");
     autonomous_running = true;
 
@@ -628,7 +529,7 @@ void AutonomousSystem::runAutonomous() {
     printf("=== AUTONOMOUS SETUP PHASE ===\n");
     
     // CRITICAL: Ensure PTO pistons are UP (scorer mode) before autonomous
-    printf("🔧 Setting PTO to SCORER MODE (pistons UP, middle wheels disconnected)...\n");
+   /* printf("🔧 Setting PTO to SCORER MODE (pistons UP, middle wheels disconnected)...\n");
     if (pto_system) {
         pto_system->setScorerMode();  // Pistons UP - middle wheels disconnected for scoring
         pros::delay(200);  // Allow pneumatics time to actuate
@@ -637,7 +538,7 @@ void AutonomousSystem::runAutonomous() {
         printf("   Middle wheels available for scoring mechanisms\n");
     } else {
         printf("❌ ERROR: PTO system not available!\n");
-    }
+    }*/
     
     printf("=== STARTING AUTONOMOUS EXECUTION ===\n");
    
