@@ -121,13 +121,13 @@ void initializeLemLib() {
     // Note: We use the RAW port numbers here, and apply negatives to get the reversal
     left_motor_group = new pros::MotorGroup({
         -LEFT_FRONT_MOTOR_PORT,   // (reversed)
-        -LEFT_MIDDLE_MOTOR_PORT,  // (reversed)
+       // -LEFT_MIDDLE_MOTOR_PORT,  // (reversed)
         -LEFT_BACK_MOTOR_PORT     // (reversed)
     }, pros::v5::MotorGears::blue);
 
     right_motor_group = new pros::MotorGroup({
         RIGHT_FRONT_MOTOR_PORT,   
-        RIGHT_MIDDLE_MOTOR_PORT,  
+        //RIGHT_MIDDLE_MOTOR_PORT,  
         RIGHT_BACK_MOTOR_PORT
     }, pros::v5::MotorGears::blue);
 

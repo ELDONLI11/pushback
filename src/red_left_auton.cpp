@@ -1,10 +1,15 @@
-
 #include "autonomous.h"
 #include "lemlib_config.h"
 #include <utility>
 #include <cmath>  // For cos, sin functions
 
-void AutonomousSystem::executeRedLeftAWP() {
+ASSET(RedRightBallCollection_txt);
+ASSET(RedRightBallScore_txt);
+ASSET(RedRightMoveToGoal_txt);
+
+void AutonomousSystem::executeRedRightAWP() {
+
+    
     printf("Executing Red Left AWP Route (Mirrored from proven Red Right route)\n");
     autonomous_running = true;
 
@@ -15,8 +20,27 @@ void AutonomousSystem::executeRedLeftAWP() {
         printf("⚠️  WARNING: PTO not in expected scorer mode - forcing scorer mode\n");
         pto_system->setScorerMode();
         pros::delay(200);
-    }
+    }   
 
+    chassis->setPose(-52, -6, 90);
+    
+    indexer_system->startInput();
+    chassis->follow(RedRightBallCollection_txt, 15, 2000);
+    chassis->waitUntilDone();
+    indexer_system->stopAll();
+    chassis->turnToHeading(182, 1000, {.maxSpeed=120,.minSpeed=100, .earlyExitRange=10});
+    chassis->follow(RedRightBallScore_txt, 8, 2000, false);
+    chassis->waitUntilDone();
+    //chassis->cancelAllMotions();
+    indexer_system->setMidGoalMode();
+    indexer_system->executeBack();
+    pros::delay(3000); // brief pause for scoring
+    indexer_system->stopAll();
+    chassis->follow(RedRightMoveToGoal_txt, 8, 2000, true);
+    chassis->waitUntilDone();
+    chassis->turnToHeading(270, 300, {.maxSpeed=120, .minSpeed=100, .earlyExitRange=3});
+    chassis->moveToPose(-65, -47, 270, 5000,{.maxSpeed=120,.minSpeed=100});
+    /*
     // Set starting pose for LEFT side (mirror of Red Right's 60°)
     chassis->setPose(0, 0, 120);  // 120° = northwest direction (mirror of 60°)
 
@@ -103,4 +127,6 @@ void AutonomousSystem::executeRedLeftAWP() {
 
     autonomous_running = false;
     printf("Red Left AWP Route Complete\n");
+
+    */
 }

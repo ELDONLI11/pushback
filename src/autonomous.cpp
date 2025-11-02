@@ -338,7 +338,7 @@ void AutonomousSystem::executeRedLeftBonus() {
     printf("Red Left BONUS Route Complete - Maximum Points + AWP achieved\n");
 }
 
-void AutonomousSystem::executeRedRightAWP() {
+void AutonomousSystem::executeRedLeftAWP() {
     printf("Executing Red Right AWP Route (Original working route moved here)\n");
     autonomous_running = true;
 
@@ -529,7 +529,7 @@ void AutonomousSystem::runAutonomous() {
     printf("=== AUTONOMOUS SETUP PHASE ===\n");
     
     // CRITICAL: Ensure PTO pistons are UP (scorer mode) before autonomous
-    printf("🔧 Setting PTO to SCORER MODE (pistons UP, middle wheels disconnected)...\n");
+   /* printf("🔧 Setting PTO to SCORER MODE (pistons UP, middle wheels disconnected)...\n");
     if (pto_system) {
         pto_system->setScorerMode();  // Pistons UP - middle wheels disconnected for scoring
         pros::delay(200);  // Allow pneumatics time to actuate
@@ -538,7 +538,7 @@ void AutonomousSystem::runAutonomous() {
         printf("   Middle wheels available for scoring mechanisms\n");
     } else {
         printf("❌ ERROR: PTO system not available!\n");
-    }
+    }*/
     
     printf("=== STARTING AUTONOMOUS EXECUTION ===\n");
    
