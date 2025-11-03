@@ -123,7 +123,7 @@ void IndexerSystem::executeFront() {
         case ScoringMode::COLLECTION:
             if (score_from_top_storage) {
                 printf("DEBUG: FRONT Collection (STORAGE) - Moving balls from storage toward front\n");
-                runLeftIndexer(FRONT_INDEXER_STORAGE_SPEED); // Move balls back from storage
+                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED); // Move balls back from storage
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_FRONT_SPEED);    // Move balls toward front goal from storage
                 runRightIndexer(RIGHT_INDEXER_COLLECTION_SPEED); // Normal collection
             } else {
@@ -139,7 +139,7 @@ void IndexerSystem::executeFront() {
         case ScoringMode::MID_GOAL:
             if (score_from_top_storage) {
                 printf("DEBUG: FRONT Mid Goal (STORAGE) - Moving balls from storage toward front\n");
-                runLeftIndexer(FRONT_INDEXER_STORAGE_SPEED);     // Move balls back from storage
+                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED);     // Move balls back from storage
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_FRONT_SPEED);        // Move balls toward front goal from storage
             } else {
                 printf("DEBUG: FRONT Mid Goal - Left middle motor: %d\n", LEFT_INDEXER_FRONT_MID_GOAL_SPEED);
@@ -152,7 +152,7 @@ void IndexerSystem::executeFront() {
         case ScoringMode::LOW_GOAL:
             if (score_from_top_storage) {
                 printf("DEBUG: FRONT Low Goal (STORAGE) - Moving balls from storage toward front then reverse intake\n");
-                runLeftIndexer(FRONT_INDEXER_STORAGE_SPEED); // Move balls back from storage
+                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED); // Move balls back from storage
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_FRONT_SPEED);    // Move balls toward front goal from storage
                 startInputReverse(); // Run intake motor in reverse for low goal
             } else {
@@ -172,7 +172,7 @@ void IndexerSystem::executeFront() {
                 runLeftIndexer(LEFT_INDEXER_FRONT_TOP_GOAL_SPEED); // Direct speed for front top goal
                 runTopIndexer(TOP_INDEXER_FRONT_SPEED);            // Direct speed for top indexer front
             }
-            runRightIndexer(RIGHT_INDEXER_COLLECTION_SPEED); // Direct speed for back collection
+            runRightIndexer(RIGHT_INDEXER_TOP_GOAL_HELPER_SPEED); // Slower back indexer to help feed balls smoothly
             startInput(); // Input motor runs in all scoring modes
             // LCD call removed to prevent rendering conflicts
             break;
@@ -236,7 +236,7 @@ void IndexerSystem::executeBack() {
         case ScoringMode::COLLECTION:
             if (score_from_top_storage) {
                 printf("DEBUG: BACK Collection (STORAGE) - Moving balls from storage toward back\n");
-                runLeftIndexer(FRONT_INDEXER_STORAGE_SPEED);     // Move balls back from storage
+                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED);     // Move balls back from storage
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_BACK_SPEED);        // Move balls toward back goal from storage
                 runRightIndexer(RIGHT_INDEXER_COLLECTION_SPEED); // Normal collection
             } else {
@@ -251,7 +251,7 @@ void IndexerSystem::executeBack() {
         case ScoringMode::MID_GOAL:
             if (score_from_top_storage) {
                 printf("DEBUG: BACK Mid Goal (STORAGE) - Moving balls from storage toward back\n");
-                runLeftIndexer(FRONT_INDEXER_STORAGE_SPEED);   // Move balls back from storage
+                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED);   // Move balls back from storage
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_BACK_SPEED);      // Move balls toward back goal from storage
                 runRightIndexer(RIGHT_INDEXER_MID_GOAL_SPEED); // Back mid goal scoring
             } else {
@@ -266,7 +266,7 @@ void IndexerSystem::executeBack() {
         case ScoringMode::LOW_GOAL:
             if (score_from_top_storage) {
                 printf("DEBUG: BACK Low Goal (STORAGE) - Moving balls from storage toward back then reverse intake\n");
-                runLeftIndexer(FRONT_INDEXER_STORAGE_SPEED); // Move balls back from storage
+                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED); // Move balls back from storage
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_BACK_SPEED);    // Move balls toward back goal from storage
                 startInputReverse(); // Run intake motor in reverse for low goal
             } else {
@@ -279,12 +279,12 @@ void IndexerSystem::executeBack() {
         case ScoringMode::TOP_GOAL:
             if (score_from_top_storage) {
                 printf("DEBUG: BACK Top Goal (STORAGE) - Front toward back + Top toward back + Back scoring\n");
-                runLeftIndexer(FRONT_INDEXER_STORAGE_SPEED);   // Front roller toward back (Option B)
+                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED);   // Front roller toward back (Option B)
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_BACK_SPEED);      // Top roller toward back goal
-                runRightIndexer(RIGHT_INDEXER_TOP_GOAL_SPEED); // Back roller to back top goal
+                runRightIndexer(RIGHT_INDEXER_TOP_GOAL_SPEED); // Back roller to back top goal (full speed for scoring)
             } else {
-                printf("DEBUG: BACK Top Goal - Right: %d, Top: %d, Left helper: %d\n", RIGHT_INDEXER_TOP_GOAL_SPEED, TOP_INDEXER_BACK_SPEED, LEFT_INDEXER_BACK_TOP_GOAL_SPEED);
-                runRightIndexer(RIGHT_INDEXER_TOP_GOAL_SPEED); // Direct speed for back top goal
+                printf("DEBUG: BACK Top Goal - Right: %d (helper), Top: %d, Left helper: %d\n", RIGHT_INDEXER_TOP_GOAL_HELPER_SPEED, TOP_INDEXER_BACK_SPEED, LEFT_INDEXER_BACK_TOP_GOAL_SPEED);
+                runRightIndexer(RIGHT_INDEXER_TOP_GOAL_HELPER_SPEED); // Slower speed to help feed balls smoothly
                 runTopIndexer(TOP_INDEXER_BACK_SPEED); // Direct speed for top indexer back
                 runLeftIndexer(LEFT_INDEXER_BACK_TOP_GOAL_SPEED); // Left motor helps bring ball upwards
             }
@@ -364,6 +364,60 @@ void IndexerSystem::startInputReverse() {
     }
 }
 
+void IndexerSystem::startIntakeAndStorage() {
+    printf("DEBUG: startIntakeAndStorage() - Face button pressed! Starting intake and moving to storage\n");
+    
+    // Stop any current scoring operations first
+    if (scoring_active) {
+        printf("DEBUG: Stopping current operation to start intake and storage\n");
+        stopAll();
+        pros::delay(100);  // Brief delay to ensure motors stop
+    }
+    
+    // 1. Start intake motor for ball collection
+    startInput();
+    printf("DEBUG: ✅ Intake motor started\n");
+    
+    // 2. Close front flap to hold balls for storage (ball containment)
+    closeFrontFlap();
+    printf("DEBUG: ✅ Front flap closed for storage\n");
+    
+    // 3. Ensure PTO is in scorer mode for top storage access
+    if (pto_system && pto_system->isDrivetrainMode()) {
+        pto_system->setScorerMode();
+        pros::delay(50); // Give pneumatics time to actuate
+        printf("DEBUG: ✅ PTO set to scorer mode for storage access\n");
+    }
+    
+    // 4. Move balls to top storage position
+    // Use moderate speed to move balls up to storage without jamming
+    runTopIndexer(60);  // Move balls to storage area (moderate speed)
+    printf("DEBUG: ✅ Top indexer moving balls to storage\n");
+    
+    // 5. Start front indexer to help move balls from intake to storage
+    // Use slow speed to avoid jamming and allow smooth ball flow
+    runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED / 2);  // Run at half speed (-40) for smooth flow
+    printf("DEBUG: ✅ Front indexer moving balls slowly toward storage\n");
+    
+    // 6. Start right indexer (back indexer) to help feed balls from back
+    // Use slow speed to support ball movement toward storage
+    runRightIndexer(RIGHT_INDEXER_TOP_GOAL_HELPER_SPEED);  // Run at slow helper speed (-50) 
+    printf("DEBUG: ✅ Right indexer (back indexer) helping feed balls slowly\n");
+    
+    // 7. Set system state flags
+    scoring_active = true;
+    scoring_start_time = pros::millis();
+    last_direction = ExecutionDirection::STORAGE;  // Mark as storage operation
+    
+    printf("DEBUG: 🎯 Intake and storage sequence started - balls will move to top storage\n");
+    
+    // 8. Controller feedback
+    pros::Controller master(pros::E_CONTROLLER_MASTER);
+    if (master.is_connected()) {
+        master.print(1, 0, "STORING: %s", getModeString());
+    }
+}
+
 void IndexerSystem::stopInput() {
     if (input_motor_active) {
         input_motor.move(0);
@@ -435,7 +489,7 @@ void IndexerSystem::update(pros::Controller& controller) {
         }
     }
     
-    // Get current button states for new control scheme
+    // Get current button states for NEW control scheme
     bool current_collection_button = controller.get_digital(COLLECTION_MODE_BUTTON);     // Y
     bool current_mid_goal_button = controller.get_digital(MID_GOAL_BUTTON);             // A
     bool current_low_goal_button = controller.get_digital(LOW_GOAL_BUTTON);             // B
@@ -455,121 +509,255 @@ void IndexerSystem::update(pros::Controller& controller) {
                current_storage_toggle_button, current_front_flap_toggle_button);
     }
     
-    // Handle mode selection (rising edge detection)
+    // NEW LOGIC: Face buttons (Y, A, B, X) start intake and storage + remember mode WITH TOGGLE
     if (current_collection_button && !last_collection_button) {
-        printf("DEBUG: Y (COLLECTION) button pressed!\n");
-        setCollectionMode();
-        controller.rumble(".");
-        force_display_update = true;  // Force immediate display update
+        // TOGGLE LOGIC: Check if we're already in collection storage mode
+        if (scoring_active && current_mode == ScoringMode::COLLECTION && last_direction == ExecutionDirection::STORAGE) {
+            printf("DEBUG: Y pressed again - STOPPING collection storage operation!\n");
+            stopAll();
+            controller.rumble("--");  // Double dash for stop
+            controller.print(1, 0, "STOPPED");
+        } else {
+            printf("DEBUG: Y (COLLECTION) button pressed - Start intake and storage!\n");
+            setCollectionMode();
+            startIntakeAndStorage();
+            controller.rumble(".");
+            controller.print(1, 0, "COLLECTION STORAGE");
+        }
+        force_display_update = true;
     }
     
     if (current_mid_goal_button && !last_mid_goal_button) {
-        printf("DEBUG: A (MID GOAL) button pressed!\n");
-        setMidGoalMode();
-        controller.rumble(".");
-        force_display_update = true;  // Force immediate display update
+        // TOGGLE LOGIC: Check if we're already in mid goal storage mode
+        if (scoring_active && current_mode == ScoringMode::MID_GOAL && last_direction == ExecutionDirection::STORAGE) {
+            printf("DEBUG: A pressed again - STOPPING mid goal storage operation!\n");
+            stopAll();
+            controller.rumble("--");  // Double dash for stop
+            controller.print(1, 0, "STOPPED");
+        } else {
+            printf("DEBUG: A (MID GOAL) button pressed - Start intake and storage!\n");
+            setMidGoalMode();
+            startIntakeAndStorage();
+            controller.rumble(".");
+            controller.print(1, 0, "MID GOAL STORAGE");
+        }
+        force_display_update = true;
     }
     
     if (current_low_goal_button && !last_low_goal_button) {
-        printf("DEBUG: B (LOW GOAL) button pressed!\n");
-        setLowGoalMode();
-        controller.rumble(".");
-        force_display_update = true;  // Force immediate display update
+        // TOGGLE LOGIC: Check if we're already in low goal storage mode
+        if (scoring_active && current_mode == ScoringMode::LOW_GOAL && last_direction == ExecutionDirection::STORAGE) {
+            printf("DEBUG: B pressed again - STOPPING low goal storage operation!\n");
+            stopAll();
+            controller.rumble("--");  // Double dash for stop
+            controller.print(1, 0, "STOPPED");
+        } else {
+            printf("DEBUG: B (LOW GOAL) button pressed - Start intake and storage!\n");
+            setLowGoalMode();
+            startIntakeAndStorage();
+            controller.rumble(".");
+            controller.print(1, 0, "LOW GOAL STORAGE");
+        }
+        force_display_update = true;
     }
     
     if (current_top_goal_button && !last_top_goal_button) {
-        printf("DEBUG: X (TOP GOAL) button pressed!\n");
-        setTopGoalMode();
-        controller.rumble(".");
-        force_display_update = true;  // Force immediate display update
-    }
-    
-    // Handle storage toggle (rising edge detection)
-    if (current_storage_toggle_button && !last_storage_toggle_button) {
-        printf("DEBUG: LEFT (STORAGE TOGGLE) button pressed!\n");
-        toggleStorageMode();
-        force_display_update = true;  // Force immediate display update
-    }
-    
-    // Handle front flap direct toggle (rising edge detection)
-    if (current_front_flap_toggle_button && !last_front_flap_toggle_button) {
-        printf("DEBUG: RIGHT (FRONT FLAP TOGGLE) button pressed!\n");
-        toggleFrontFlap();
-        controller.rumble("..."); // Triple rumble pattern for front flap
-        force_display_update = true;  // Force immediate display update
-    }
-    
-    // Handle execution with TOGGLE functionality and INTERRUPTION support (rising edge detection)
-    if (current_front_execute_button && !last_front_execute_button) {
-        printf("DEBUG: R2 (FRONT EXECUTE) button pressed!\n");
-        printf("DEBUG: Current state - scoring_active: %d, last_direction: %d\n", scoring_active, (int)last_direction);
-        
-        // TOGGLE: If already scoring front, stop it. 
-        // INTERRUPT: If scoring back, interrupt and start front.
-        if (scoring_active && last_direction == ExecutionDirection::FRONT) {
-            printf("DEBUG: R2 pressed again - STOPPING front execution\n");
+        // TOGGLE LOGIC: Check if we're already in top goal storage mode
+        if (scoring_active && current_mode == ScoringMode::TOP_GOAL && last_direction == ExecutionDirection::STORAGE) {
+            printf("DEBUG: X pressed again - STOPPING top goal storage operation!\n");
             stopAll();
-            controller.rumble("---"); // Long rumble for stop
+            controller.rumble("--");  // Double dash for stop
+            controller.print(1, 0, "STOPPED");
         } else {
-            // Either not scoring anything, or scoring back (which will be interrupted)
-            if (scoring_active && last_direction == ExecutionDirection::BACK) {
-                printf("DEBUG: R2 pressed - INTERRUPTING back execution to start front\n");
-            } else {
-                printf("DEBUG: R2 pressed - STARTING front execution\n");
-            }
-            executeFront();
-            controller.rumble(".."); // Double rumble for start
+            printf("DEBUG: X (TOP GOAL) button pressed - Start intake and storage!\n");
+            setTopGoalMode();
+            startIntakeAndStorage();
+            controller.rumble(".");
+            controller.print(1, 0, "TOP GOAL STORAGE");
         }
-        force_display_update = true;  // Force immediate display update
+        force_display_update = true;
+    }
+    
+    // NEW LOGIC: R1/R2 buttons - Behavior depends on remembered mode
+    if (current_front_execute_button && !last_front_execute_button) {
+        printf("DEBUG: R2 (FRONT) button pressed!\n");
+        
+        if (current_mode == ScoringMode::NONE) {
+            printf("DEBUG: No mode selected for FRONT - need to press Y/A/B/X first\n");
+            controller.print(1, 0, "Press Y/A/B/X first");
+            controller.rumble("---");
+        } else if (current_mode == ScoringMode::COLLECTION) {
+            // Y MODE: PTO DOWN + intake pushes FORWARD
+            printf("DEBUG: R2 with Y mode - PTO DOWN + intake pushes FORWARD!\n");
+            
+            // Stop any current operation
+            if (scoring_active) {
+                stopAll();
+                pros::delay(100);
+            }
+            
+            // Put PTO DOWN (drivetrain mode)
+            if (pto_system && pto_system->isScorerMode()) {
+                printf("DEBUG: ✅ Putting PTO DOWN for drivetrain mode\n");
+                pto_system->setDrivetrainMode();
+                pros::delay(300);  // Allow pneumatics time to actuate
+            }
+            
+            // Use intake motor to push FORWARD
+            printf("DEBUG: ✅ Intake motor pushing FORWARD\n");
+            startInput();  // Normal intake direction for forward push
+            
+            // Set state
+            scoring_active = true;
+            scoring_start_time = pros::millis();
+            last_direction = ExecutionDirection::FRONT;
+            
+            controller.rumble("..");
+            controller.print(1, 0, "PUSH FORWARD");
+            
+        } else {
+            // A/B/X MODES: Use indexer for scoring with toggle functionality
+            if (scoring_active && last_direction == ExecutionDirection::FRONT) {
+                printf("DEBUG: R2 pressed again - TOGGLE back to storage mode (keep mode: %s)\n", getModeString());
+                
+                // Stop current operation and go back to storage
+                stopAll();
+                pros::delay(100);
+                
+                // Go back to storage mode
+                startIntakeAndStorage();
+                controller.rumble(".-");
+                
+            } else {
+                printf("DEBUG: R2 first press - FRONT scoring with mode: %s\n", getModeString());
+                
+                // Stop any current operation
+                if (scoring_active) {
+                    stopAll();
+                    pros::delay(100);
+                }
+                
+                last_direction = ExecutionDirection::FRONT;
+                executeFront();  // Use indexer system for scoring
+                controller.rumble("..");
+            }
+        }
+        force_display_update = true;
     }
     
     if (current_back_execute_button && !last_back_execute_button) {
-        printf("DEBUG: R1 (BACK EXECUTE) button pressed!\n");
-        printf("DEBUG: Current state - scoring_active: %d, last_direction: %d\n", scoring_active, (int)last_direction);
+        printf("DEBUG: R1 (BACK) button pressed!\n");
         
-        // TOGGLE: If already scoring back, stop it.
-        // INTERRUPT: If scoring front, interrupt and start back.
-        if (scoring_active && last_direction == ExecutionDirection::BACK) {
-            printf("DEBUG: R1 pressed again - STOPPING back execution\n");
-            stopAll();
-            controller.rumble("---"); // Long rumble for stop
-        } else {
-            // Either not scoring anything, or scoring front (which will be interrupted)
-            if (scoring_active && last_direction == ExecutionDirection::FRONT) {
-                printf("DEBUG: R1 pressed - INTERRUPTING front execution to start back\n");
-            } else {
-                printf("DEBUG: R1 pressed - STARTING back execution\n");
+        if (current_mode == ScoringMode::NONE) {
+            printf("DEBUG: No mode selected for BACK - need to press Y/A/B/X first\n");
+            controller.print(1, 0, "Press Y/A/B/X first");
+            controller.rumble("---");
+        } else if (current_mode == ScoringMode::COLLECTION) {
+            // Y MODE: PTO DOWN + intake pushes BACKWARD
+            printf("DEBUG: R1 with Y mode - PTO DOWN + intake pushes BACKWARD!\n");
+            
+            // Stop any current operation
+            if (scoring_active) {
+                stopAll();
+                pros::delay(100);
             }
-            executeBack();
-            controller.rumble(".."); // Double rumble for start
+            
+            // Put PTO DOWN (drivetrain mode)
+            if (pto_system && pto_system->isScorerMode()) {
+                printf("DEBUG: ✅ Putting PTO DOWN for drivetrain mode\n");
+                pto_system->setDrivetrainMode();
+                pros::delay(300);  // Allow pneumatics time to actuate
+            }
+            
+            // Use intake motor to push BACKWARD
+            printf("DEBUG: ✅ Intake motor pushing BACKWARD\n");
+            startInputReverse();  // Reverse intake direction for backward push
+            
+            // Set state
+            scoring_active = true;
+            scoring_start_time = pros::millis();
+            last_direction = ExecutionDirection::BACK;
+            
+            controller.rumble("..");
+            controller.print(1, 0, "PUSH BACKWARD");
+            
+        } else {
+            // A/B/X MODES: Use indexer for scoring with toggle functionality
+            if (scoring_active && last_direction == ExecutionDirection::BACK) {
+                printf("DEBUG: R1 pressed again - TOGGLE back to storage mode (keep mode: %s)\n", getModeString());
+                
+                // Stop current operation and go back to storage
+                stopAll();
+                pros::delay(100);
+                
+                // Go back to storage mode
+                startIntakeAndStorage();
+                controller.rumble(".-");
+                
+            } else {
+                printf("DEBUG: R1 first press - BACK scoring with mode: %s\n", getModeString());
+                
+                // Stop any current operation
+                if (scoring_active) {
+                    stopAll();
+                    pros::delay(100);
+                }
+                
+                last_direction = ExecutionDirection::BACK;
+                executeBack();  // Use indexer system for scoring
+                controller.rumble("..");
+            }
         }
-        force_display_update = true;  // Force immediate display update
+        force_display_update = true;
     }
     
-    // IMPORTANT: Add timeout mechanism for low goal mode to prevent system from getting stuck
-    if (scoring_active && current_mode == ScoringMode::LOW_GOAL) {
-        // Automatic timeout for low goal mode after 3 seconds
-        if (pros::millis() - scoring_start_time > 3000) {
+    // Keep existing functionality for storage toggle and front flap
+    if (current_storage_toggle_button && !last_storage_toggle_button) {
+        printf("DEBUG: LEFT (STORAGE TOGGLE) button pressed!\n");
+        toggleStorageMode();
+        force_display_update = true;
+    }
+    
+    if (current_front_flap_toggle_button && !last_front_flap_toggle_button) {
+        printf("DEBUG: RIGHT (FRONT FLAP TOGGLE) button pressed!\n");
+        toggleFrontFlap();
+        controller.rumble("...");
+        force_display_update = true;
+    }
+    
+    // Keep existing timeout mechanisms
+    if (scoring_active) {
+        // Timeout for low goal mode
+        if (current_mode == ScoringMode::LOW_GOAL && (pros::millis() - scoring_start_time > 3000)) {
             printf("DEBUG: Low goal mode timeout - automatically stopping (was %s direction)\n", getDirectionString());
             stopAll();
             
-            // Notify controller
             if (controller.is_connected()) {
                 controller.print(2, 0, "LOW TIMEOUT");
                 controller.rumble("...");
             }
         }
-    }
-    
-    // Emergency stop: If any execution runs for more than 5 seconds, force stop
-    // This ensures no flow gets stuck permanently
-    if (scoring_active && (pros::millis() - scoring_start_time > 5000)) {
-        printf("DEBUG: Emergency timeout - force stopping %s operations after 5 seconds\n", getDirectionString());
-        stopAll();
         
-        if (controller.is_connected()) {
-            controller.print(2, 0, "EMERGENCY STOP");
-            controller.rumble("---");
+        // Different timeouts for different operations
+        uint32_t timeout_duration;
+        if (last_direction == ExecutionDirection::STORAGE) {
+            timeout_duration = 8000;  // 8 seconds for storage operations
+        } else if (current_mode == ScoringMode::COLLECTION && 
+                  (last_direction == ExecutionDirection::FRONT || last_direction == ExecutionDirection::BACK)) {
+            timeout_duration = 3000;  // 3 seconds for Y mode push operations
+        } else {
+            timeout_duration = 5000;  // 5 seconds for normal scoring operations
+        }
+        
+        if (pros::millis() - scoring_start_time > timeout_duration) {
+            printf("DEBUG: Timeout - force stopping %s operations after %d seconds\n", 
+                   getDirectionString(), timeout_duration / 1000);
+            stopAll();
+            
+            if (controller.is_connected()) {
+                controller.print(2, 0, "TIMEOUT STOP");
+                controller.rumble("---");
+            }
         }
     }
     
@@ -710,9 +898,10 @@ void IndexerSystem::updateControllerDisplay(pros::Controller& controller, bool f
 
 const char* IndexerSystem::getDirectionString() const {
     switch (last_direction) {
-        case ExecutionDirection::FRONT: return "FRONT";
-        case ExecutionDirection::BACK:  return "BACK";
-        case ExecutionDirection::NONE:  return "NONE";
+        case ExecutionDirection::FRONT:   return "FRONT";
+        case ExecutionDirection::BACK:    return "BACK";
+        case ExecutionDirection::STORAGE: return "STORAGE";  // NEW
+        case ExecutionDirection::NONE:    return "NONE";
         default: return "UNKNOWN";
     }
 }

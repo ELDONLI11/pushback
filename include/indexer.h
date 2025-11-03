@@ -27,9 +27,10 @@ enum class ScoringMode {
  * Execution direction enumeration - which button executes the selected mode
  */
 enum class ExecutionDirection {
-    FRONT,  ///< Execute with front indexer (R2)
-    BACK,   ///< Execute with back indexer (R1)
-    NONE    ///< No execution yet
+    FRONT,      ///< Execute with front indexer (R2)
+    BACK,       ///< Execute with back indexer (R1)
+    STORAGE,    ///< NEW: Intake and storage operation
+    NONE        ///< No execution yet
 };
 
 /**
@@ -144,6 +145,12 @@ public:
      * Start input motor in reverse for low goal scoring
      */
     void startInputReverse();
+
+    /**
+     * NEW: Start intake and move balls to storage
+     * Called when any mode button (X, A, B, Y) is pressed
+     */
+    void startIntakeAndStorage();
 
     /**
      * Stop input motor

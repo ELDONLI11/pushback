@@ -183,7 +183,7 @@
 #define INPUT_MOTOR_REVERSE_SPEED      -100   
 
 // FRONT INDEXER speeds (optimized per user request)
-#define LEFT_INDEXER_FRONT_COLLECTION_SPEED     -100     // 100% power for collection
+#define LEFT_INDEXER_FRONT_COLLECTION_SPEED     -80     // 100% power for collection
 #define LEFT_INDEXER_FRONT_MID_GOAL_SPEED        80     // 50% power for mid back
 #define LEFT_INDEXER_FRONT_TOP_GOAL_SPEED       -100     // 100% power for mid front (used for front top scoring)
 
@@ -196,6 +196,7 @@
 #define RIGHT_INDEXER_MID_GOAL_SPEED           100     // Back mid goal mode  
 #define RIGHT_INDEXER_IMMEDIATE_SPEED          -125    // Back immediate mode
 #define RIGHT_INDEXER_TOP_GOAL_SPEED           -127    // Back top goal mode
+#define RIGHT_INDEXER_TOP_GOAL_HELPER_SPEED    -80     // Back indexer helper for top goal ball feeding (slower)
 
 // TOP INDEXER speeds
 #define TOP_INDEXER_FRONT_SPEED                125    // Top indexer when scoring front
@@ -204,7 +205,6 @@
 // STORAGE MODE speeds - for moving balls from top storage toward goals
 #define TOP_INDEXER_STORAGE_TO_FRONT_SPEED     125     // Top indexer moves balls from storage toward front goal (max speed)
 #define TOP_INDEXER_STORAGE_TO_BACK_SPEED     -125     // Top indexer moves balls from storage toward back goal (max speed)
-#define FRONT_INDEXER_STORAGE_SPEED            100     // Front indexer moves balls back from storage
 
 // =============================================================================
 // AUTONOMOUS SYSTEM CONFIGURATION
