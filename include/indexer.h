@@ -247,6 +247,12 @@ public:
      */
     bool isStorageModeActive() const;
 
+    /**
+     * Verify PTO is in correct mode for storage operations
+     * @return True if PTO is ready for storage operations
+     */
+    bool verifyPTOForStorage();
+
 private:
     /**
      * Run left indexer (left middle motor via PTO) for front operations

@@ -123,7 +123,7 @@ void IndexerSystem::executeFront() {
         case ScoringMode::COLLECTION:
             if (score_from_top_storage) {
                 printf("DEBUG: FRONT Collection (STORAGE) - Moving balls from storage toward front\n");
-                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED); // Move balls back from storage
+                runLeftIndexer(LEFT_INDEXER_STORAGE_TO_FRONT_SPEED); // Help move balls from storage toward front
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_FRONT_SPEED);    // Move balls toward front goal from storage
                 runRightIndexer(RIGHT_INDEXER_COLLECTION_SPEED); // Normal collection
             } else {
@@ -154,7 +154,7 @@ void IndexerSystem::executeFront() {
                 printf("DEBUG: FRONT Low Goal (STORAGE) - Moving balls from storage toward front then reverse intake\n");
                 runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED); // Move balls back from storage
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_FRONT_SPEED);    // Move balls toward front goal from storage
-                startInputReverse(); // Run intake motor in reverse for low goal
+                startInputReverse(); // Run intake motor in reverse for low goal scoring
             } else {
                 printf("DEBUG: FRONT Low Goal - Only intake motor reverse: %d\n", INPUT_MOTOR_REVERSE_SPEED);
                 startInputReverse(); // Only run intake motor in reverse for low goal
@@ -163,15 +163,11 @@ void IndexerSystem::executeFront() {
             break;
             
         case ScoringMode::TOP_GOAL:
-            if (score_from_top_storage) {
-                printf("DEBUG: FRONT Top Goal (STORAGE) - Moving balls from storage toward back goal\n");
-                runLeftIndexer(LEFT_INDEXER_FRONT_TOP_GOAL_SPEED); // Direct speed for front top goal
-                runTopIndexer(TOP_INDEXER_STORAGE_TO_BACK_SPEED);          // Move balls toward back goal from storage
-            } else {
-                printf("DEBUG: FRONT Top Goal - Left middle + top indexer: %d, %d\n", LEFT_INDEXER_FRONT_TOP_GOAL_SPEED, TOP_INDEXER_FRONT_SPEED);
-                runLeftIndexer(LEFT_INDEXER_FRONT_TOP_GOAL_SPEED); // Direct speed for front top goal
-                runTopIndexer(TOP_INDEXER_FRONT_SPEED);            // Direct speed for top indexer front
-            }
+            // For FRONT Top Goal, ignore storage mode - ball is already at front top position
+            printf("DEBUG: FRONT Top Goal - Ball already at front top, ignoring storage mode\n");
+            printf("DEBUG: FRONT Top Goal - Left middle + top indexer: %d, %d\n", LEFT_INDEXER_FRONT_TOP_GOAL_SPEED, TOP_INDEXER_FRONT_SPEED);
+            runLeftIndexer(LEFT_INDEXER_FRONT_TOP_GOAL_SPEED); // Direct speed for front top goal
+            runTopIndexer(TOP_INDEXER_FRONT_SPEED);            // Direct speed for top indexer front
             runRightIndexer(RIGHT_INDEXER_TOP_GOAL_HELPER_SPEED); // Slower back indexer to help feed balls smoothly
             startInput(); // Input motor runs in all scoring modes
             // LCD call removed to prevent rendering conflicts
@@ -268,7 +264,7 @@ void IndexerSystem::executeBack() {
                 printf("DEBUG: BACK Low Goal (STORAGE) - Moving balls from storage toward back then reverse intake\n");
                 runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED); // Move balls back from storage
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_BACK_SPEED);    // Move balls toward back goal from storage
-                startInputReverse(); // Run intake motor in reverse for low goal
+                startInputReverse(); // Run intake motor in reverse for low goal scoring
             } else {
                 printf("DEBUG: BACK Low Goal - Only intake motor reverse: %d\n", INPUT_MOTOR_REVERSE_SPEED);
                 startInputReverse(); // Only run intake motor in reverse for low goal
@@ -374,20 +370,24 @@ void IndexerSystem::startIntakeAndStorage() {
         pros::delay(100);  // Brief delay to ensure motors stop
     }
     
-    // 1. Start intake motor for ball collection
+    // 1. Verify PTO is ready for storage operations
+    if (!verifyPTOForStorage()) {
+        printf("ERROR: Cannot start storage operation - PTO not ready\n");
+        pros::Controller master(pros::E_CONTROLLER_MASTER);
+        if (master.is_connected()) {
+            master.print(1, 0, "PTO ERROR");
+            master.rumble("---");
+        }
+        return;
+    }
+    
+    // 2. Start intake motor for ball collection
     startInput();
     printf("DEBUG: ✅ Intake motor started\n");
     
-    // 2. Close front flap to hold balls for storage (ball containment)
+    // 3. Close front flap to hold balls for storage (ball containment)
     closeFrontFlap();
     printf("DEBUG: ✅ Front flap closed for storage\n");
-    
-    // 3. Ensure PTO is in scorer mode for top storage access
-    if (pto_system && pto_system->isDrivetrainMode()) {
-        pto_system->setScorerMode();
-        pros::delay(50); // Give pneumatics time to actuate
-        printf("DEBUG: ✅ PTO set to scorer mode for storage access\n");
-    }
     
     // 4. Move balls to top storage position
     // Use moderate speed to move balls up to storage without jamming
@@ -964,4 +964,26 @@ void IndexerSystem::toggleStorageMode() {
 
 bool IndexerSystem::isStorageModeActive() const {
     return score_from_top_storage;
+}
+
+bool IndexerSystem::verifyPTOForStorage() {
+    if (!pto_system) {
+        printf("WARNING: PTO system not available for storage operations\n");
+        return false;
+    }
+    
+    if (pto_system->isDrivetrainMode()) {
+        printf("DEBUG: PTO in drivetrain mode, switching to scorer mode for storage...\n");
+        pto_system->setScorerMode();
+        pros::delay(200); // Wait for pneumatic actuation
+        
+        // Verify the switch worked (if PTO has state verification)
+        if (pto_system->isDrivetrainMode()) {
+            printf("ERROR: PTO failed to switch to scorer mode!\n");
+            return false;
+        }
+        printf("DEBUG: ✅ PTO successfully switched to scorer mode\n");
+    }
+    
+    return true;
 }
