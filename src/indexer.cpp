@@ -339,11 +339,11 @@ void IndexerSystem::toggleFrontFlap() {
 void IndexerSystem::startInput() {
     if (!input_motor_active) {
         printf("DEBUG: Starting input motor at %d RPM\n", INPUT_MOTOR_SPEED);
-        input_motor.move(INPUT_MOTOR_SPEED);
+        input_motor.move_velocity(INPUT_MOTOR_SPEED);
+        printf("DEBUG: Input motor velocity control: %d RPM\n", INPUT_MOTOR_SPEED);
         input_motor_active = true;
         input_start_time = pros::millis();
         
-        // LCD call removed to prevent rendering conflicts
         printf("DEBUG: Input motor started successfully\n");
     } else {
         printf("DEBUG: Input motor already active\n");
@@ -353,11 +353,11 @@ void IndexerSystem::startInput() {
 void IndexerSystem::startInputReverse() {
     if (!input_motor_active) {
         printf("DEBUG: Starting input motor in REVERSE at %d RPM\n", INPUT_MOTOR_REVERSE_SPEED);
-        input_motor.move(INPUT_MOTOR_REVERSE_SPEED);
+        input_motor.move_velocity(INPUT_MOTOR_REVERSE_SPEED);
+        printf("DEBUG: Input motor reverse velocity control: %d RPM\n", INPUT_MOTOR_REVERSE_SPEED);
         input_motor_active = true;
         input_start_time = pros::millis();
         
-        // LCD call removed to prevent rendering conflicts
         printf("DEBUG: Input motor reverse started successfully\n");
     } else {
         printf("DEBUG: Input motor already active\n");
@@ -420,10 +420,8 @@ void IndexerSystem::startIntakeAndStorage() {
 
 void IndexerSystem::stopInput() {
     if (input_motor_active) {
-        input_motor.move(0);
+        input_motor.move_velocity(0);  // Stop using velocity control
         input_motor_active = false;
-        
-        // LCD call removed to prevent rendering conflicts
     }
 }
 
@@ -434,9 +432,9 @@ void IndexerSystem::stopAll() {
     bool was_scoring = scoring_active;
     ExecutionDirection previous_direction = last_direction;
     
-    // Stop all motors explicitly
-    input_motor.move(0);
-    input_motor.move(0);  // Double-stop to ensure it's off
+    // Stop all motors explicitly using velocity control
+    input_motor.move_velocity(0);    // Stop velocity control
+    input_motor.move_velocity(0);    // Double-stop to ensure it's off
     
     stopLeftIndexer();   // Stop left middle motor (front)
     stopRightIndexer();  // Stop right middle motor (back)
@@ -908,56 +906,54 @@ const char* IndexerSystem::getDirectionString() const {
 
 void IndexerSystem::runLeftIndexer(int speed) {
     // Left indexer uses the LEFT middle wheel via PTO for front storage/scoring
-    printf("DEBUG: runLeftIndexer() called with speed: %d\n", speed);
+    printf("DEBUG: runLeftIndexer() called with speed: %d RPM\n", speed);
     
     // Create motor object for LEFT middle wheel WITHOUT automatic reversal for direct control
     pros::Motor left_middle(LEFT_MIDDLE_MOTOR_PORT, DRIVETRAIN_GEARSET);
     
-    // Run the left middle wheel for front indexer with direct speed control
-    left_middle.move(speed);
-    printf("DEBUG: Left middle motor (front indexer) direct speed: %d\n", speed);
+    // Use velocity control (RPM) - maintains full torque at target speed
+    left_middle.move_velocity(speed);
+    printf("DEBUG: Left middle motor (front indexer) velocity control: %d RPM\n", speed);
 }
 
 void IndexerSystem::runRightIndexer(int speed) {
     // Right indexer uses the RIGHT middle wheel via PTO for back scoring
-    printf("DEBUG: runRightIndexer() called with speed: %d\n", speed);
+    printf("DEBUG: runRightIndexer() called with speed: %d RPM\n", speed);
     
     // Create motor object for RIGHT middle wheel WITHOUT automatic reversal for direct control
     pros::Motor right_middle(RIGHT_MIDDLE_MOTOR_PORT, DRIVETRAIN_GEARSET);
     
-    // Run the right middle wheel for back indexer with direct speed control
-    right_middle.move(speed);
-    printf("DEBUG: Right middle motor (back indexer) direct speed: %d\n", speed);
+    // Use velocity control (RPM) - maintains full torque at target speed
+    right_middle.move_velocity(speed);
+    printf("DEBUG: Right middle motor (back indexer) velocity control: %d RPM\n", speed);
 }
 
 void IndexerSystem::runTopIndexer(int speed) {
     // Top indexer is shared between front top and back top scoring
-    printf("DEBUG: runTopIndexer() called with speed: %d\n", speed);
-    top_indexer.move(speed);
-    printf("DEBUG: Top indexer motor command sent\n");
+    printf("DEBUG: runTopIndexer() called with speed: %d RPM\n", speed);
+    
+    // Use velocity control (RPM) - maintains full torque at target speed
+    top_indexer.move_velocity(speed);
+    printf("DEBUG: Top indexer velocity control: %d RPM\n", speed);
 }
 
 void IndexerSystem::stopTopIndexer() {
     // Stop the top indexer motor
     printf("DEBUG: Stopping top indexer\n");
-    top_indexer.move(0);
+    top_indexer.move_velocity(0);  // Stop using velocity control
 }
 
 
 void IndexerSystem::stopLeftIndexer() {
     // Stop LEFT middle wheel with direct motor control
     pros::Motor left_middle(LEFT_MIDDLE_MOTOR_PORT, DRIVETRAIN_GEARSET);
-    left_middle.move(0);
-    
-    // LCD call removed to prevent rendering conflicts
+    left_middle.move_velocity(0);  // Stop using velocity control
 }
 
 void IndexerSystem::stopRightIndexer() {
     // Stop RIGHT middle wheel with direct motor control
     pros::Motor right_middle(RIGHT_MIDDLE_MOTOR_PORT, DRIVETRAIN_GEARSET);
-    right_middle.move(0);
-    
-    // LCD call removed to prevent rendering conflicts
+    right_middle.move_velocity(0);  // Stop using velocity control
 }
 
 void IndexerSystem::toggleStorageMode() {
