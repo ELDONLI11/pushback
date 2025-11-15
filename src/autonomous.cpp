@@ -7,6 +7,7 @@
 
 #include "autonomous.h"
 #include "lemlib_config.h"
+#include "color_sensor.h"
 #include <utility>
 #include <cmath>  // For cos, sin functions
 
@@ -70,11 +71,12 @@ void AutoSelector::displayOptions() {
         "Blue Left AWP",         // 7
         "Blue Right AWP",        // 8
         "Skills",                // 9
-        "Test: Drive",           // 10 - This is the auto test mode
+        "Test: Drive",           // 10
         "Test: Turn",            // 11
         "Test: Navigation",      // 12
         "Test: Odometry",        // 13
-        "Test: Motors"           // 14
+        "Test: Motors",          // 14
+        "Test: Color Sorter"     // 15
     };
     
     // Display on controller screen only
@@ -105,13 +107,13 @@ void AutoSelector::handleInput() {
         // Navigation mode
         if (left_pressed || down_pressed) {
             selector_position--;
-            if (selector_position < 0) selector_position = 14;  // EXPANDED: Now goes to 14
+            if (selector_position < 0) selector_position = 15;  // EXPANDED: Now goes to 15
             printf("Selected mode: %d\n", selector_position);
         }
         
         if (right_pressed || up_pressed) {
             selector_position++;
-            if (selector_position > 14) selector_position = 0;  // EXPANDED: Now supports 0-14
+            if (selector_position > 15) selector_position = 0;  // EXPANDED: Now supports 0-15
             printf("Selected mode: %d\n", selector_position);
         }
         
@@ -136,7 +138,8 @@ void AutoSelector::handleInput() {
                 "TEST_TURN",                  // 11
                 "TEST_NAVIGATION",            // 12
                 "TEST_ODOMETRY",              // 13
-                "TEST_MOTORS"                 // 14
+                "TEST_MOTORS",                // 14
+                "TEST_COLOR_SORTER"           // 15
             };
             printf("Mode: %s\n", mode_names[selector_position]);
         }
@@ -868,6 +871,11 @@ void AutonomousSystem::runAutonomous() {
             testMotorIdentification(); // Test which physical motor corresponds to each port
             break;
             
+        case AutoMode::TEST_COLOR_SORTER:
+            printf("🎨 TEST: Color Sorter & Counter\n");
+            testColorSorter();        // Test color detection and storage counting
+            break;
+            
         case AutoMode::DISABLED:
         default:
             printf("Autonomous disabled or invalid mode\n");
@@ -1118,4 +1126,163 @@ void AutonomousSystem::testMotorIdentification() {
     printf("\nThe motor that should be disconnected by PTO is the physically MIDDLE one!\n");
     printf("If runRightIndexer() moved a motor that's still connected to drivetrain,\n");
     printf("then we need to fix the port assignments in config.h\n");
+}
+
+void AutonomousSystem::testColorSorter() {
+    printf("\n=== COLOR SORTER & COUNTER TEST ===\n");
+    printf("This test displays real-time ball detection and storage count\n");
+    printf("Feed balls through the intake to test color detection\n\n");
+    
+    // Get the controller for display
+    pros::Controller master(pros::E_CONTROLLER_MASTER);
+    
+    // Get reference to color sensor system (global instance)
+    extern ColorSensorSystem* color_sensor_system;
+    
+    if (!color_sensor_system) {
+        printf("❌ ERROR: Color sensor system not initialized!\n");
+        master.set_text(0, 0, "COLOR SENSOR ERR");
+        master.set_text(1, 0, "Not initialized");
+        return;
+    }
+    
+    if (!indexer_system) {
+        printf("❌ ERROR: Indexer system not initialized!\n");
+        master.set_text(0, 0, "INDEXER ERROR");
+        master.set_text(1, 0, "Not initialized");
+        return;
+    }
+    
+    // Reset statistics for clean test
+    color_sensor_system->resetStatistics();
+    indexer_system->resetStorageBallCount();
+    
+    // Set to COLLECT_ALL mode initially (sorting disabled for testing)
+    color_sensor_system->setSortingMode(SortingMode::COLLECT_ALL);
+    
+    printf("✅ Color sensor system ready\n");
+    printf("✅ Storage counter ready\n");
+    printf("📊 Initial display format:\n");
+    printf("   Line 0: [Color] Count X/3\n");
+    printf("   Line 1: R:X B:X E:X\n\n");
+    printf("Controller controls during test:\n");
+    printf("  LEFT stick left  → COLLECT_RED mode\n");
+    printf("  RIGHT stick right → COLLECT_BLUE mode\n");
+    printf("  X button → Reset statistics\n");
+    printf("  B button → Exit test\n\n");
+    
+    master.set_text(0, 0, "COLOR TEST READY");
+    master.set_text(1, 0, "Feed balls now");
+    pros::delay(2000);
+    
+    uint32_t last_update = pros::millis();
+    bool test_running = true;
+    
+    while (test_running) {
+        // Update color sensor system
+        color_sensor_system->update();
+        
+        // Get current statistics
+        int red_count, blue_count, ejected_count, false_count;
+        color_sensor_system->getStatistics(red_count, blue_count, ejected_count, false_count);
+        
+        // Get storage count
+        int storage_count = indexer_system->getStorageBallCount();
+        
+        // Get last detected color
+        BallColor last_color = color_sensor_system->getLastDetectedColor();
+        const char* color_text = "";
+        switch (last_color) {
+            case BallColor::RED: color_text = "RED"; break;
+            case BallColor::BLUE: color_text = "BLUE"; break;
+            case BallColor::NO_BALL: color_text = "---"; break;
+            default: color_text = "???"; break;
+        }
+        
+        // Get current sorting mode
+        SortingMode mode = color_sensor_system->getSortingMode();
+        const char* mode_text = "";
+        switch (mode) {
+            case SortingMode::COLLECT_RED: mode_text = "RED"; break;
+            case SortingMode::COLLECT_BLUE: mode_text = "BLU"; break;
+            case SortingMode::COLLECT_ALL: mode_text = "ALL"; break;
+            case SortingMode::EJECT_ALL: mode_text = "NON"; break;
+        }
+        
+        // Update display every 100ms
+        if (pros::millis() - last_update > 100) {
+            // Line 0: Last color detected and storage count
+            master.print(0, 0, "[%s] St:%d/3 M:%s", color_text, storage_count, mode_text);
+            
+            // Line 1: Statistics (Red count, Blue count, Ejected count)
+            master.print(1, 0, "R:%d B:%d E:%d F:%d", red_count, blue_count, ejected_count, false_count);
+            
+            // Console output for detailed monitoring
+            if (color_sensor_system->isBallDetected()) {
+                printf("🎯 Ball detected | Color: %s | Storage: %d/3 | Mode: %s\n", 
+                       color_text, storage_count, mode_text);
+            }
+            
+            last_update = pros::millis();
+        }
+        
+        // Handle controller inputs
+        if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
+            // Reset statistics
+            color_sensor_system->resetStatistics();
+            indexer_system->resetStorageBallCount();
+            printf("📊 Statistics reset\n");
+            master.rumble(".");
+        }
+        
+        if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
+            // Exit test
+            test_running = false;
+            printf("🛑 Test stopped by user\n");
+        }
+        
+        // Mode selection controls
+        if (master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X) < -64) {
+            color_sensor_system->setSortingMode(SortingMode::COLLECT_RED);
+            printf("🔴 Switched to COLLECT_RED mode\n");
+            master.rumble("-");
+            pros::delay(500); // Debounce
+        }
+        
+        if (master.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X) > 64) {
+            color_sensor_system->setSortingMode(SortingMode::COLLECT_BLUE);
+            printf("🔵 Switched to COLLECT_BLUE mode\n");
+            master.rumble("-");
+            pros::delay(500); // Debounce
+        }
+        
+        pros::delay(10); // Small delay for loop
+    }
+    
+    // Final statistics
+    int final_red, final_blue, final_ejected, final_false;
+    color_sensor_system->getStatistics(final_red, final_blue, final_ejected, final_false);
+    int final_storage = indexer_system->getStorageBallCount();
+    
+    printf("\n=== TEST COMPLETE ===\n");
+    printf("📊 Final Statistics:\n");
+    printf("   Red balls detected: %d\n", final_red);
+    printf("   Blue balls detected: %d\n", final_blue);
+    printf("   Balls ejected: %d\n", final_ejected);
+    printf("   False detections: %d\n", final_false);
+    printf("   Final storage count: %d/3\n", final_storage);
+    printf("   Total balls seen: %d\n", final_red + final_blue);
+    
+    if (final_false > 0) {
+        printf("\n⚠️  Warning: %d false detections occurred\n", final_false);
+        printf("   Consider adjusting thresholds or cleaning sensors\n");
+    }
+    
+    if (final_ejected > 0) {
+        printf("\n✅ Ejection system working: %d balls ejected\n", final_ejected);
+    }
+    
+    master.set_text(0, 0, "TEST COMPLETE");
+    master.print(1, 0, "R:%d B:%d E:%d", final_red, final_blue, final_ejected);
+    pros::delay(3000);
 }

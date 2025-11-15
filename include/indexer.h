@@ -67,6 +67,10 @@ private:
     bool score_from_top_storage;    ///< True when scoring from top storage is enabled
     bool front_flap_open;           ///< True when front flap is open (manual tracking)
     
+    // Storage ball management
+    int storage_ball_count;         ///< Current number of balls in storage (max 3)
+    static const int MAX_STORAGE_BALLS = 3;  ///< Maximum balls allowed in storage
+    
     // Button state tracking (for edge detection)
     bool last_collection_button;
     bool last_mid_goal_button;
@@ -242,9 +246,33 @@ public:
     void toggleStorageMode();
 
     /**
-     * Get current storage mode state
-     * @return True if scoring from top storage is enabled
+     * Get current storage ball count
+     * @return Number of balls currently in storage (0-3)
      */
+    int getStorageBallCount() const;
+
+    /**
+     * Check if storage is full
+     * @return True if storage has reached maximum capacity (3 balls)
+     */
+    bool isStorageFull() const;
+
+    /**
+     * Add a ball to storage count (used when ball enters storage)
+     * @return True if ball was added, false if storage is full
+     */
+    bool addBallToStorage();
+
+    /**
+     * Remove a ball from storage count (used when ball leaves storage for scoring)
+     * @return True if ball was removed, false if storage was already empty
+     */
+    bool removeBallFromStorage();
+
+    /**
+     * Reset storage ball count to zero
+     */
+    void resetStorageBallCount();
     bool isStorageModeActive() const;
 
     /**
@@ -279,21 +307,33 @@ private:
 
     /**
      * Format mode for compact display
-     * @return Single character representing mode
+     * @return Single character or symbol representing mode
      */
-    char getModeChar() const;
+    const char* getModeSymbol() const;
 
     /**
      * Format direction for compact display  
-     * @return Single character representing direction
+     * @return Single character or symbol representing direction
      */
-    char getDirectionChar() const;
+    const char* getDirectionSymbol() const;
 
     /**
      * Format status icon for display
      * @return Status symbol character
      */
-    char getStatusIcon() const;
+    const char* getStatusSymbol() const;
+
+    /**
+     * Get flap status icon for display
+     * @return Flap status symbol character
+     */
+    const char* getFlapStatusIcon() const;
+
+    /**
+     * Get storage visual representation
+     * @return String showing storage ball count visually
+     */
+    const char* getStorageVisual() const;
 };
 
 #endif // _INDEXER_H_

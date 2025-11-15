@@ -3,16 +3,24 @@
 ## Overview
 This document provides a complete reference for all controller button mappings and key combinations for the pushback robot control system.
 
+## 🌟 **New Features**
+- **3-Ball Storage Limit**: Automatic storage capacity management (max 3 balls)
+- **Color Sorting Integration**: Automatic ball sorting with mid goal ejection
+- **Smart Ball Counting**: Only desired color balls count toward storage limit
+- **Manual Storage Controls**: Testing controls for storage ball count
+
 ## Robot Configuration
 - **Drive System**: 6-wheel tank drive (3 wheels per side)
 - **Wheels**: 3.75" omni wheels
 - **Motors**: 11W motors with green cartridges (18:1 gearing)
 - **PTO System**: Pneumatic Power Take-Off for switching middle wheels between drive and scorer modes
 - **Intake System**: Pneumatic intake mechanism for collecting balls from tubes
+- **Color Sensors**: Dual optical sensors for automatic ball color detection
 - **Scoring System**: 
   - **Front**: Left middle motor (via PTO) + pneumatic flap + top indexer motor (for top goals)
   - **Back**: Right middle motor (via PTO) + top indexer motor (for top goals) - *Both motors reversed for proper direction*
-  - **Storage**: Only on front side with pneumatic flap control
+  - **Storage**: Maximum 3 balls with automatic counting and color filtering
+  - **Color Ejection**: Unwanted balls ejected via back mid goal
 
 ---
 
@@ -107,6 +115,54 @@ This document provides a complete reference for all controller button mappings a
 |-----------|-----------|----------|
 | **Front (R2)** | Pneumatic flap control | Opens flap → score → closes flap |
 | **Back (R1)** | Direct scoring | No flap - direct ball release |
+
+---
+
+## 🎨 Color Sorting System
+
+### Automatic Ball Sorting
+- **Purpose**: Keep only desired color balls, eject unwanted ones via **BACK MID GOAL**
+- **Sensors**: Two optical sensors detect ball color and direction
+- **Integration**: Works with 3-ball storage limit system
+
+### Color Mode Selection
+| Control | Mode | Description |
+|---------|------|-------------|
+| **Left Stick X (Left)** | COLLECT_RED | Keep red balls, eject blue balls |
+| **Right Stick X (Right)** | COLLECT_BLUE | Keep blue balls, eject red balls |
+| **RIGHT Arrow** | Toggle ON/OFF | Enable/disable color sorting |
+
+### Color Sorting Controls
+| Button | Function | Description |
+|--------|----------|-------------|
+| **LEFT Arrow** | Manual Eject | Force ejection for testing |
+| **L1** | Increase Duration | +50ms ejection time |
+| **L2** | Decrease Duration | -50ms ejection time |
+
+### Color Sorting Behavior:
+- **Desired Color**: Ball passes through → counted toward storage (up to 3)
+- **Unwanted Color**: Ball detected → ejected via back mid goal (no storage impact)
+- **Storage Integration**: Only kept balls count toward 3-ball limit
+
+## 💾 Storage Management System
+
+### 3-Ball Storage Limit
+- **Capacity**: Maximum 3 balls in storage at any time
+- **Display**: Controller shows current count (e.g., "Storage: 2/3")
+- **Protection**: System prevents overflow with "STORAGE FULL!" warning
+
+### Manual Storage Controls (Testing)
+| Combination | Function | Description |
+|-------------|----------|-------------|
+| **LEFT + R1** | Add Ball Count | Manually increase storage count |
+| **LEFT + R2** | Remove Ball Count | Manually decrease storage count |
+| **LEFT (alone)** | Toggle Storage Mode | Enable/disable scoring from storage |
+
+### Storage Behavior:
+- **Normal Intake**: Balls count toward storage until 3/3
+- **Storage Full**: Further storage attempts blocked with warning
+- **Color Sorting**: Only desired color balls count toward limit
+- **Scoring from Storage**: Ball count decreases when scoring
 
 ---
 

@@ -20,8 +20,8 @@ class IndexerSystem;
 // =============================================================================
 
 // Color sensor ports (V5 smart ports)
-#define COLOR_SENSOR_1_PORT     5   // First color sensor (entry detection)
-#define COLOR_SENSOR_2_PORT     11  // Second color sensor (confirmation/direction)
+#define COLOR_SENSOR_1_PORT     19  // Lower color sensor (entry detection)
+#define COLOR_SENSOR_2_PORT     20  // Upper color sensor (confirmation/direction)
 
 // Ball color detection thresholds and values
 #define RED_HUE_MIN             0     // Red hue range minimum

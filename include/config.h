@@ -225,7 +225,8 @@
 #define TOP_INDEXER_STORAGE_TO_BACK_SPEED     -200      // RPM - storage to back with full torque
 
 // LEFT INDEXER speeds when scoring FROM storage (opposite of collection direction)
-#define LEFT_INDEXER_STORAGE_TO_FRONT_SPEED    300      // RPM - help move balls from storage toward front
+// NOTE: FRONT storage now uses LEFT_INDEXER_FRONT_COLLECTION_SPEED for consistent direction
+// #define LEFT_INDEXER_STORAGE_TO_FRONT_SPEED    300      // RPM - UNUSED: help move balls from storage toward front
 #define LEFT_INDEXER_STORAGE_TO_BACK_SPEED     550      // RPM - help move balls from storage toward back
 
 // =============================================================================
@@ -297,7 +298,8 @@ enum class AutoMode {
     TEST_TURN = 11,
     TEST_NAVIGATION = 12,
     TEST_ODOMETRY = 13,
-    TEST_MOTORS = 14
+    TEST_MOTORS = 14,
+    TEST_COLOR_SORTER = 15
 };
 
 #endif // _CONFIG_H_

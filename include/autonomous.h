@@ -147,6 +147,7 @@ public:
     void testPointToPoint();
     void testOdometryAccuracy();
     void testMotorIdentification();
+    void testColorSorter();
 };
 
 #endif // _AUTONOMOUS_H_

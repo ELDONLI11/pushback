@@ -3,6 +3,27 @@
 ## Overview
 This guide helps test all scenarios where storage rollers should move correctly when scoring from storage.
 
+## New Feature: Storage Ball Limit ⭐ **NEW**
+The storage system now enforces a maximum of **3 balls** in storage at any time.
+
+### Storage Limit Features:
+- **Maximum capacity**: 3 balls
+- **Automatic checking**: System prevents storage when full
+- **Visual feedback**: Controller displays current count (e.g., "2/3")
+- **Manual controls**: Left + R1/R2 to manually adjust count for testing
+
+### Storage Count Controls:
+- **Left + R1**: Manually add a ball to storage count (testing only)
+- **Left + R2**: Manually remove a ball from storage count (testing only)
+- **Left alone**: Toggle storage mode on/off (existing functionality)
+
+### Storage Full Behavior:
+- When storage is full (3/3), attempting to store more balls will:
+  - Display "STORAGE FULL!" on controller
+  - Give short rumble feedback ("--")
+  - Cancel the storage operation
+  - Print warning to debug output
+
 ## Fixed Issues
 1. **Front Top Goal Storage Logic**: Fixed front top goal to ignore storage mode since ball is already at front top position
 2. **PTO Timing**: Increased pneumatic actuation delay from 50ms to 200ms  
@@ -133,6 +154,33 @@ DEBUG: ✅ Top indexer moving balls to storage
 - Back roller (Right): -550 RPM (full speed for top goal scoring)
 - Intake motor: Forward
 
+### **Scenario 10: Storage Ball Limit Testing** ⭐ **NEW**
+**Steps:**
+1. Use manual controls to set storage count to 3 balls (Left + R1 pressed 3 times)
+2. Verify display shows "Storage: 3/3"
+3. Press Y/A/B/X (any scoring mode) to attempt storage
+4. Observe system rejection
+
+**Expected Behavior:**
+- Controller displays "STORAGE FULL!"
+- Controller gives short rumble ("--")
+- Storage operation is cancelled
+- Debug output shows warning
+- Ball count remains at 3/3
+
+### **Scenario 11: Storage Count Management** ⭐ **NEW**
+**Steps:**
+1. Use Left + R1 to add balls to storage count (max 3)
+2. Use Left + R2 to remove balls from storage count
+3. Verify display updates show correct count
+4. Test storage operations at different counts (1/3, 2/3, 3/3)
+
+**Expected Behavior:**
+- Display updates to show current count (e.g., "Storage: 2/3")
+- Adding beyond 3 balls shows "Storage Full!" warning
+- Removing below 0 balls shows "Storage Empty!" warning
+- Storage operations work when count < 3, blocked when count = 3
+
 ### **Scenario 10: PTO Error Handling** ⚠️ **NEW**
 **Steps:**
 1. Manually set PTO to drivetrain mode
@@ -165,6 +213,12 @@ DEBUG: ✅ Top indexer moving balls to storage
 3. Check for error messages on controller
 4. Ensure mode is selected before pressing R1/R2
 
+### **Storage Full Issues** ⭐ **NEW**
+1. Check storage count display (should show "X/3")
+2. Use Left + R2 to manually remove balls if needed
+3. Look for "STORAGE FULL!" message on controller
+4. Verify storage limit is respected (max 3 balls)
+
 ### **Conflicting Ball Flow** 
 1. Verify intake motor direction in storage scenarios
 2. Check roller speed signs (+ vs -)
@@ -186,7 +240,9 @@ DEBUG: ✅ Top indexer moving balls to storage
 - [ ] Scenario 7: Back Mid Goal from Storage
 - [ ] Scenario 8: Front Top Goal from Storage
 - [ ] Scenario 9: Back Top Goal from Storage
-- [ ] Scenario 10: PTO Error Handling (NEW)
+- [ ] Scenario 10: Storage Ball Limit Testing (NEW) ⭐
+- [ ] Scenario 11: Storage Count Management (NEW) ⭐
+- [ ] Scenario 12: PTO Error Handling (EXISTING)
 
 ## **Expected Test Results**
 

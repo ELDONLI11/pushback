@@ -6,6 +6,8 @@
  */
 
 #include "indexer.h"
+#include "config.h"
+#include "lemlib_config.h"
 #include <cstdio>
 #include <cstring>
 
@@ -22,6 +24,7 @@ IndexerSystem::IndexerSystem(PTO* pto)
       input_motor_active(false),
       score_from_top_storage(false),
       front_flap_open(false),  // Start with flap closed (default state)
+      storage_ball_count(0),   // Initialize storage ball count to 0
       last_collection_button(false),
       last_mid_goal_button(false),
       last_low_goal_button(false),
@@ -123,7 +126,8 @@ void IndexerSystem::executeFront() {
         case ScoringMode::COLLECTION:
             if (score_from_top_storage) {
                 printf("DEBUG: FRONT Collection (STORAGE) - Moving balls from storage toward front\n");
-                runLeftIndexer(LEFT_INDEXER_STORAGE_TO_FRONT_SPEED); // Help move balls from storage toward front
+                removeBallFromStorage(); // Ball leaving storage for front collection
+                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED); // Reverse direction from normal collection
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_FRONT_SPEED);    // Move balls toward front goal from storage
                 runRightIndexer(RIGHT_INDEXER_COLLECTION_SPEED); // Normal collection
             } else {
@@ -139,8 +143,9 @@ void IndexerSystem::executeFront() {
         case ScoringMode::MID_GOAL:
             if (score_from_top_storage) {
                 printf("DEBUG: FRONT Mid Goal (STORAGE) - Moving balls from storage toward front\n");
-                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED);     // Move balls back from storage
-                runTopIndexer(TOP_INDEXER_STORAGE_TO_FRONT_SPEED);        // Move balls toward front goal from storage
+                removeBallFromStorage(); // Ball leaving storage for front mid goal
+                runLeftIndexer(LEFT_INDEXER_FRONT_MID_GOAL_SPEED);     // Move balls back from storage
+                runTopIndexer(TOP_INDEXER_BACK_SPEED);        // Move balls back from storage 
             } else {
                 printf("DEBUG: FRONT Mid Goal - Left middle motor: %d\n", LEFT_INDEXER_FRONT_MID_GOAL_SPEED);
                 runLeftIndexer(LEFT_INDEXER_FRONT_MID_GOAL_SPEED); // Direct speed for front mid goal
@@ -152,8 +157,9 @@ void IndexerSystem::executeFront() {
         case ScoringMode::LOW_GOAL:
             if (score_from_top_storage) {
                 printf("DEBUG: FRONT Low Goal (STORAGE) - Moving balls from storage toward front then reverse intake\n");
-                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED); // Move balls back from storage
-                runTopIndexer(TOP_INDEXER_STORAGE_TO_FRONT_SPEED);    // Move balls toward front goal from storage
+                removeBallFromStorage(); // Ball leaving storage for front low goal
+                runLeftIndexer(LEFT_INDEXER_FRONT_MID_GOAL_SPEED);     // Move balls back from storage
+                runTopIndexer(TOP_INDEXER_BACK_SPEED);        // Move balls back from storage 
                 startInputReverse(); // Run intake motor in reverse for low goal scoring
             } else {
                 printf("DEBUG: FRONT Low Goal - Only intake motor reverse: %d\n", INPUT_MOTOR_REVERSE_SPEED);
@@ -232,7 +238,8 @@ void IndexerSystem::executeBack() {
         case ScoringMode::COLLECTION:
             if (score_from_top_storage) {
                 printf("DEBUG: BACK Collection (STORAGE) - Moving balls from storage toward back\n");
-                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED);     // Move balls back from storage
+                removeBallFromStorage(); // Ball leaving storage for back collection
+                runLeftIndexer(-LEFT_INDEXER_BACK_COLLECTION_SPEED);     // Reverse direction from normal back collection
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_BACK_SPEED);        // Move balls toward back goal from storage
                 runRightIndexer(RIGHT_INDEXER_COLLECTION_SPEED); // Normal collection
             } else {
@@ -247,7 +254,8 @@ void IndexerSystem::executeBack() {
         case ScoringMode::MID_GOAL:
             if (score_from_top_storage) {
                 printf("DEBUG: BACK Mid Goal (STORAGE) - Moving balls from storage toward back\n");
-                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED);   // Move balls back from storage
+                removeBallFromStorage(); // Ball leaving storage for back mid goal
+                runLeftIndexer(LEFT_INDEXER_BACK_MID_GOAL_SPEED);   // Reverse direction from normal back mid goal
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_BACK_SPEED);      // Move balls toward back goal from storage
                 runRightIndexer(RIGHT_INDEXER_MID_GOAL_SPEED); // Back mid goal scoring
             } else {
@@ -262,7 +270,8 @@ void IndexerSystem::executeBack() {
         case ScoringMode::LOW_GOAL:
             if (score_from_top_storage) {
                 printf("DEBUG: BACK Low Goal (STORAGE) - Moving balls from storage toward back then reverse intake\n");
-                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED); // Move balls back from storage
+                removeBallFromStorage(); // Ball leaving storage for back low goal
+                runLeftIndexer(-LEFT_INDEXER_BACK_COLLECTION_SPEED); // Reverse direction from normal back collection
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_BACK_SPEED);    // Move balls toward back goal from storage
                 startInputReverse(); // Run intake motor in reverse for low goal scoring
             } else {
@@ -275,7 +284,8 @@ void IndexerSystem::executeBack() {
         case ScoringMode::TOP_GOAL:
             if (score_from_top_storage) {
                 printf("DEBUG: BACK Top Goal (STORAGE) - Front toward back + Top toward back + Back scoring\n");
-                runLeftIndexer(LEFT_INDEXER_FRONT_COLLECTION_SPEED);   // Front roller toward back (Option B)
+                removeBallFromStorage(); // Ball leaving storage for back top goal
+                runLeftIndexer(LEFT_INDEXER_BACK_TOP_GOAL_SPEED);   // Reverse direction from normal back top goal
                 runTopIndexer(TOP_INDEXER_STORAGE_TO_BACK_SPEED);      // Top roller toward back goal
                 runRightIndexer(RIGHT_INDEXER_TOP_GOAL_SPEED); // Back roller to back top goal (full speed for scoring)
             } else {
@@ -363,6 +373,19 @@ void IndexerSystem::startInputReverse() {
 void IndexerSystem::startIntakeAndStorage() {
     printf("DEBUG: startIntakeAndStorage() - Face button pressed! Starting intake and moving to storage\n");
     
+    // Check storage capacity before allowing more balls
+    if (isStorageFull()) {
+        printf("WARNING: Storage is full! Cannot store more balls (current: %d, max: %d)\n", 
+               storage_ball_count, MAX_STORAGE_BALLS);
+        
+        pros::Controller master(pros::E_CONTROLLER_MASTER);
+        if (master.is_connected()) {
+            master.print(1, 0, "STORAGE FULL!");
+            master.rumble("--");  // Short rumble for warning
+        }
+        return;
+    }
+    
     // Stop any current scoring operations first
     if (scoring_active) {
         printf("DEBUG: Stopping current operation to start intake and storage\n");
@@ -414,8 +437,10 @@ void IndexerSystem::startIntakeAndStorage() {
     // 8. Controller feedback
     pros::Controller master(pros::E_CONTROLLER_MASTER);
     if (master.is_connected()) {
-        master.print(1, 0, "STORING: %s", getModeString());
+        master.print(1, 0, "STORING: %s (%d/%d)", getModeString(), storage_ball_count, MAX_STORAGE_BALLS);
     }
+    
+    printf("DEBUG: 💾 Storage count: %d/%d balls\n", storage_ball_count, MAX_STORAGE_BALLS);
 }
 
 void IndexerSystem::stopInput() {
@@ -716,6 +741,33 @@ void IndexerSystem::update(pros::Controller& controller) {
         force_display_update = true;
     }
     
+    // Manual storage ball count controls (for testing and manual adjustment)
+    // Left Arrow + R1 = Manually add a ball to storage count
+    if (current_storage_toggle_button && current_back_execute_button && !last_back_execute_button) {
+        printf("DEBUG: LEFT + R1 - Manually adding ball to storage count\n");
+        if (addBallToStorage()) {
+            controller.rumble(".");
+            controller.print(1, 0, "Ball Added: %d/%d", storage_ball_count, MAX_STORAGE_BALLS);
+        } else {
+            controller.rumble("---");
+            controller.print(1, 0, "Storage Full!");
+        }
+        force_display_update = true;
+    }
+    
+    // Left Arrow + R2 = Manually remove a ball from storage count
+    if (current_storage_toggle_button && current_front_execute_button && !last_front_execute_button) {
+        printf("DEBUG: LEFT + R2 - Manually removing ball from storage count\n");
+        if (removeBallFromStorage()) {
+            controller.rumble("..");
+            controller.print(1, 0, "Ball Removed: %d/%d", storage_ball_count, MAX_STORAGE_BALLS);
+        } else {
+            controller.rumble("---");
+            controller.print(1, 0, "Storage Empty!");
+        }
+        force_display_update = true;
+    }
+    
     if (current_front_flap_toggle_button && !last_front_flap_toggle_button) {
         printf("DEBUG: RIGHT (FRONT FLAP TOGGLE) button pressed!\n");
         toggleFrontFlap();
@@ -804,31 +856,46 @@ const char* IndexerSystem::getFlowStatus() const {
     return status_buffer;
 }
 
-char IndexerSystem::getModeChar() const {
+const char* IndexerSystem::getModeSymbol() const {
     switch (current_mode) {
-        case ScoringMode::COLLECTION:  return 'C';
-        case ScoringMode::MID_GOAL:    return 'M';
-        case ScoringMode::LOW_GOAL:    return 'L';
-        case ScoringMode::TOP_GOAL:    return 'T';
-        case ScoringMode::NONE:        return '-';
-        default: return '?';
+        case ScoringMode::COLLECTION:  return "⚪"; // White circle for collection
+        case ScoringMode::MID_GOAL:    return "◐"; // Half-filled circle for mid
+        case ScoringMode::LOW_GOAL:    return "▼"; // Down arrow for low
+        case ScoringMode::TOP_GOAL:    return "▲"; // Up arrow for top
+        case ScoringMode::NONE:        return "○"; // Empty circle
+        default: return "?";
     }
 }
 
-char IndexerSystem::getDirectionChar() const {
+const char* IndexerSystem::getDirectionSymbol() const {
     switch (last_direction) {
-        case ExecutionDirection::FRONT: return 'F';
-        case ExecutionDirection::BACK:  return 'B';
-        case ExecutionDirection::NONE:  return '-';
-        default: return '?';
+        case ExecutionDirection::FRONT:   return "→"; // Right arrow for front
+        case ExecutionDirection::BACK:    return "←"; // Left arrow for back
+        case ExecutionDirection::STORAGE: return "↓"; // Down arrow for storage
+        case ExecutionDirection::NONE:    return "●"; // Dot for none
+        default: return "?";
     }
 }
 
-char IndexerSystem::getStatusIcon() const {
+const char* IndexerSystem::getStatusSymbol() const {
     if (!scoring_active) {
-        return (current_mode == ScoringMode::NONE) ? 'X' : 'O';  // No mode or Ready
+        return (current_mode == ScoringMode::NONE) ? "⭕" : "✓";  // No mode or Ready
     } else {
-        return '>';  // Active/Running
+        return "⚡";  // Active/Running (lightning bolt)
+    }
+}
+
+const char* IndexerSystem::getFlapStatusIcon() const {
+    return front_flap_open ? "◣" : "◤";  // Open/closed flap visual
+}
+
+const char* IndexerSystem::getStorageVisual() const {
+    switch(storage_ball_count) {
+        case 0: return "○○○";
+        case 1: return "●○○"; 
+        case 2: return "●●○";
+        case 3: return "●●●";
+        default: return "???";
     }
 }
 
@@ -846,32 +913,34 @@ void IndexerSystem::updateControllerDisplay(pros::Controller& controller, bool f
     
     char line0[17], line1[17], line2[17];
     
-    // LINE 0: Mode buttons + Storage + Current Mode Indicator
-    // Format: "C●M○L○T● ST○ →T"
-    snprintf(line0, sizeof(line0), "C%c M%c L%c T%c ST%c",
-             (current_mode == ScoringMode::COLLECTION) ? '*' : 'o',
-             (current_mode == ScoringMode::MID_GOAL) ? '*' : 'o', 
-             (current_mode == ScoringMode::LOW_GOAL) ? '*' : 'o',
-             (current_mode == ScoringMode::TOP_GOAL) ? '*' : 'o',
-             score_from_top_storage ? '*' : 'o');
+    // LINE 0: Mode buttons with Unicode symbols + Storage + Flap status
+    // Format: "⚪◐▼▲ ↓◤ ⚡"
+    snprintf(line0, sizeof(line0), "%s%s%s%s %s%s %s",
+             (current_mode == ScoringMode::COLLECTION) ? "⚪" : "○",
+             (current_mode == ScoringMode::MID_GOAL) ? "◐" : "○", 
+             (current_mode == ScoringMode::LOW_GOAL) ? "▼" : "○",
+             (current_mode == ScoringMode::TOP_GOAL) ? "▲" : "○",
+             score_from_top_storage ? "↓" : "○",
+             getFlapStatusIcon(),
+             getModeSymbol());
     
-    // LINE 1: Execution buttons + Direction indicator
-    // Format: "R2○ R1● →BACK"  
-    snprintf(line1, sizeof(line1), "R2%c R1%c %c%c",
-             (scoring_active && last_direction == ExecutionDirection::FRONT) ? '*' : 'o',
-             (scoring_active && last_direction == ExecutionDirection::BACK) ? '*' : 'o',
-             scoring_active ? '>' : '-',
-             getDirectionChar());
+    // LINE 1: Execution buttons + Storage visual + Direction indicator
+    // Format: "R2○ R1◉ ●●○ ←"  
+    snprintf(line1, sizeof(line1), "R2%s R1%s %s %s",
+             (scoring_active && last_direction == ExecutionDirection::FRONT) ? "◉" : "○",
+             (scoring_active && last_direction == ExecutionDirection::BACK) ? "◉" : "○",
+             getStorageVisual(),
+             getDirectionSymbol());
     
-    // LINE 2: Mode name + Runtime + Status
-    // Format: "COLLECT 2.1s >"
+    // LINE 2: Mode name + Runtime + Status with Unicode
+    // Format: "COLLECT 2.1s ⚡"
     if (scoring_active) {
         float runtime = (current_time - scoring_start_time) / 1000.0f;
-        snprintf(line2, sizeof(line2), "%s %.1fs %c", 
-                getModeString(), runtime, getStatusIcon());
+        snprintf(line2, sizeof(line2), "%s %.1fs %s", 
+                getModeString(), runtime, getStatusSymbol());
     } else {
-        snprintf(line2, sizeof(line2), "%s READY %c", 
-                getModeString(), getStatusIcon());
+        snprintf(line2, sizeof(line2), "%s READY %s", 
+                getModeString(), getStatusSymbol());
     }
     
     // Only update lines that have changed to reduce flicker
@@ -908,24 +977,28 @@ void IndexerSystem::runLeftIndexer(int speed) {
     // Left indexer uses the LEFT middle wheel via PTO for front storage/scoring
     printf("DEBUG: runLeftIndexer() called with speed: %d RPM\n", speed);
     
-    // Create motor object for LEFT middle wheel WITHOUT automatic reversal for direct control
-    pros::Motor left_middle(LEFT_MIDDLE_MOTOR_PORT, DRIVETRAIN_GEARSET);
-    
-    // Use velocity control (RPM) - maintains full torque at target speed
-    left_middle.move_velocity(speed);
-    printf("DEBUG: Left middle motor (front indexer) velocity control: %d RPM\n", speed);
+    // Use existing motor object from LemLib configuration (avoids recreation overhead)
+    if (left_middle_motor) {
+        // Use velocity control (RPM) - maintains full torque at target speed
+        left_middle_motor->move_velocity(speed);
+        printf("DEBUG: Left middle motor (front indexer) velocity control: %d RPM\n", speed);
+    } else {
+        printf("ERROR: left_middle_motor is null! LemLib not initialized?\n");
+    }
 }
 
 void IndexerSystem::runRightIndexer(int speed) {
     // Right indexer uses the RIGHT middle wheel via PTO for back scoring
     printf("DEBUG: runRightIndexer() called with speed: %d RPM\n", speed);
     
-    // Create motor object for RIGHT middle wheel WITHOUT automatic reversal for direct control
-    pros::Motor right_middle(RIGHT_MIDDLE_MOTOR_PORT, DRIVETRAIN_GEARSET);
-    
-    // Use velocity control (RPM) - maintains full torque at target speed
-    right_middle.move_velocity(speed);
-    printf("DEBUG: Right middle motor (back indexer) velocity control: %d RPM\n", speed);
+    // Use existing motor object from LemLib configuration (avoids recreation overhead)
+    if (right_middle_motor) {
+        // Use velocity control (RPM) - maintains full torque at target speed
+        right_middle_motor->move_velocity(speed);
+        printf("DEBUG: Right middle motor (back indexer) velocity control: %d RPM\n", speed);
+    } else {
+        printf("ERROR: right_middle_motor is null! LemLib not initialized?\n");
+    }
 }
 
 void IndexerSystem::runTopIndexer(int speed) {
@@ -945,15 +1018,17 @@ void IndexerSystem::stopTopIndexer() {
 
 
 void IndexerSystem::stopLeftIndexer() {
-    // Stop LEFT middle wheel with direct motor control
-    pros::Motor left_middle(LEFT_MIDDLE_MOTOR_PORT, DRIVETRAIN_GEARSET);
-    left_middle.move_velocity(0);  // Stop using velocity control
+    // Stop LEFT middle wheel using existing motor object
+    if (left_middle_motor) {
+        left_middle_motor->move_velocity(0);  // Stop using velocity control
+    }
 }
 
 void IndexerSystem::stopRightIndexer() {
-    // Stop RIGHT middle wheel with direct motor control
-    pros::Motor right_middle(RIGHT_MIDDLE_MOTOR_PORT, DRIVETRAIN_GEARSET);
-    right_middle.move_velocity(0);  // Stop using velocity control
+    // Stop RIGHT middle wheel using existing motor object
+    if (right_middle_motor) {
+        right_middle_motor->move_velocity(0);  // Stop using velocity control
+    }
 }
 
 void IndexerSystem::toggleStorageMode() {
@@ -986,4 +1061,64 @@ bool IndexerSystem::verifyPTOForStorage() {
     }
     
     return true;
+}
+
+// =============================================================================
+// STORAGE BALL COUNT MANAGEMENT
+// =============================================================================
+
+int IndexerSystem::getStorageBallCount() const {
+    return storage_ball_count;
+}
+
+bool IndexerSystem::isStorageFull() const {
+    return storage_ball_count >= MAX_STORAGE_BALLS;
+}
+
+bool IndexerSystem::addBallToStorage() {
+    if (isStorageFull()) {
+        printf("WARNING: Cannot add ball to storage - already at maximum capacity (%d/%d)\n", 
+               storage_ball_count, MAX_STORAGE_BALLS);
+        return false;
+    }
+    
+    storage_ball_count++;
+    printf("DEBUG: Ball added to storage. Count: %d/%d\n", storage_ball_count, MAX_STORAGE_BALLS);
+    
+    // Update controller display with storage status
+    pros::Controller master(pros::E_CONTROLLER_MASTER);
+    if (master.is_connected()) {
+        master.print(2, 0, "Storage: %d/%d", storage_ball_count, MAX_STORAGE_BALLS);
+    }
+    
+    return true;
+}
+
+bool IndexerSystem::removeBallFromStorage() {
+    if (storage_ball_count <= 0) {
+        printf("WARNING: Cannot remove ball from storage - already empty\n");
+        return false;
+    }
+    
+    storage_ball_count--;
+    printf("DEBUG: Ball removed from storage. Count: %d/%d\n", storage_ball_count, MAX_STORAGE_BALLS);
+    
+    // Update controller display with storage status
+    pros::Controller master(pros::E_CONTROLLER_MASTER);
+    if (master.is_connected()) {
+        master.print(2, 0, "Storage: %d/%d", storage_ball_count, MAX_STORAGE_BALLS);
+    }
+    
+    return true;
+}
+
+void IndexerSystem::resetStorageBallCount() {
+    storage_ball_count = 0;
+    printf("DEBUG: Storage ball count reset to 0\n");
+    
+    // Update controller display
+    pros::Controller master(pros::E_CONTROLLER_MASTER);
+    if (master.is_connected()) {
+        master.print(2, 0, "Storage: 0/%d", MAX_STORAGE_BALLS);
+    }
 }

@@ -216,6 +216,30 @@ void ColorSensorSystem::update() {
             (current_time - sensor2_trigger_time < BALL_EJECT_DELAY_MS)) {
             startEjection();
         }
+    } else if (last_detected_color != BallColor::UNKNOWN && 
+               last_detected_color != BallColor::NO_BALL &&
+               !shouldEjectBall(last_detected_color) &&
+               last_direction == BallDirection::FORWARD) {
+        
+        // Ball is the desired color and moving forward - should be stored
+        // Check if ball has passed sensor 2 (completed passage)
+        if (!sensor2_triggered && sensor2_trigger_time > 0 && 
+            (current_time - sensor2_trigger_time < 1000)) { // Within 1 second of leaving sensor 2
+            
+            printf("✅ Desired color ball (%s) passed through - adding to storage\n", 
+                   colorToString(last_detected_color));
+            
+            // Add ball to storage count if indexer is available
+            if (indexer_system && !indexer_system->isStorageFull()) {
+                indexer_system->addBallToStorage();
+                printf("💾 Ball added to storage by color sensor system\n");
+            } else if (indexer_system && indexer_system->isStorageFull()) {
+                printf("⚠️ Storage full - desired ball cannot be stored\n");
+            }
+            
+            // Reset sensor 2 trigger time to prevent double-counting
+            sensor2_trigger_time = 0;
+        }
     }
     
     // Handle ejection timing
@@ -483,7 +507,7 @@ void ColorSensorSystem::startEjection() {
             return; // Don't eject if indexer is already active
         }
         
-        printf("🚨 BALL EJECTION STARTING\n");
+        printf("🚨 BALL EJECTION STARTING - Using MID GOAL for unwanted ball color\n");
         printf("⏱️ Ejection duration: %dms\n", ejection_duration);
         
         // SAVE CURRENT STATE before ejection
@@ -497,11 +521,14 @@ void ColorSensorSystem::startEjection() {
         ejection_start_time = pros::millis();
         balls_ejected++;
         
-        printf("🚀 Ball ejection started using indexer system (Total ejected: %d)\n", balls_ejected);
+        printf("🚀 Ball ejection started using MID GOAL scoring (Total ejected: %d)\n", balls_ejected);
         
-        // Temporarily set indexer to mid goal mode and execute back scoring
+        // CRITICAL: Use mid goal mode for ejection, but don't count as storage removal
+        // This ball was never in storage, so don't call removeBallFromStorage()
         indexer_system->setMidGoalMode();  // Set to mid goal scoring mode
         indexer_system->executeBack();     // Execute back indexer (ejects ball from back mid)
+        
+        printf("🎯 Unwanted ball color being ejected via BACK MID GOAL\n");
     }
 }
 
