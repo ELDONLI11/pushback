@@ -27,7 +27,6 @@
 
 // Indexer and intake system motors
 #define INPUT_MOTOR_PORT        1   // 11W motor at bottom for ball intake
-#define TOP_INDEXER_PORT        8   // Top indexer motor (shared: front top OR back top)
 #define FRONT_LOADER_MOTOR_PORT 7   // Front match loader motor
 
 // Odometry and navigation sensors
@@ -35,17 +34,12 @@
 #define HORIZONTAL_ENCODER_PORT 10  // Horizontal tracking wheel encoder  
 #define GYRO_PORT              13   // Inertial sensor for heading
 
-// Color sensing and sorting system
-#define COLOR_SENSOR_1_PORT     5   // First color sensor (entry detection)
-#define COLOR_SENSOR_2_PORT     11  // Second color sensor (confirmation/direction)
-
 // =============================================================================
 // ADI PORTS - Sensors and Legacy Devices
 // =============================================================================
 
 // Front match loader encoder (VEX shaft encoder)
-#define FRONT_LOADER_ENCODER_TOP    'E'  // ADI port E 
-#define FRONT_LOADER_ENCODER_BOTTOM 'E'  // ADI port E (same port for shaft encoder)
+#define FRONT_LOADER_ENCODER_TOP    'E'  // ADI port E
 
 // =============================================================================
 
@@ -57,6 +51,10 @@
 // Front scoring flap pneumatic
 // Controls flap that holds balls for front scoring
 #define FRONT_FLAP_PNEUMATIC    'B'  // ADI port B (moved from C)
+
+// Intake pneumatic (port D)
+// Controls simple extend/retract intake piston
+#define INTAKE_PNEUMATIC        'D'  // ADI port D
 
 // =============================================================================
 // FRONT MATCH LOADER CONFIGURATION  
@@ -117,9 +115,6 @@
 // Front loader adjustment amount for L1/L2 buttons
 #define FRONT_LOADER_ADJUST_AMOUNT 5  // Degrees to adjust per button press (5 degrees = noticeable movement)
 
-// Storage scoring control - LEFT button
-#define STORAGE_TOGGLE_BUTTON     pros::E_CONTROLLER_DIGITAL_LEFT // Toggle score from top storage mode
-
 // Front flap direct control - RIGHT button
 #define FRONT_FLAP_TOGGLE_BUTTON  pros::E_CONTROLLER_DIGITAL_RIGHT // Toggle front flap open/closed
 
@@ -148,14 +143,15 @@
 #define PTO_RETRACTED   true  // Retracted = scorer mode (2-wheel drive, middle wheels for scorer)
 
 // Front flap pneumatic states
-#define FRONT_FLAP_OPEN   false  // Open = balls can score through front (reversed due to wiring)
-#define FRONT_FLAP_CLOSED true   // Closed = balls held against flap (reversed due to wiring)
+#define FRONT_FLAP_OPEN   true  // Open = balls can score through front (reversed due to wiring)
+#define FRONT_FLAP_CLOSED false   // Closed = balls held against flap (reversed due to wiring)
+
+// Intake pneumatic states
+#define INTAKE_EXTENDED   true   // Extended = intake mechanism deployed
+#define INTAKE_RETRACTED  false  // Retracted = intake mechanism stored (default)
 
 // Default PTO state on robot startup
 #define PTO_DEFAULT_STATE PTO_EXTENDED
-
-// Default front flap state on robot startup
-#define FRONT_FLAP_DEFAULT_STATE FRONT_FLAP_CLOSED
 
 // =============================================================================
 // INTAKE MECHANISM CONFIGURATION (FRONT MATCH LOADER)
@@ -200,33 +196,16 @@
 #define INPUT_MOTOR_SPEED               1000     // RPM - high speed for effective intake
 #define INPUT_MOTOR_REVERSE_SPEED      -300    // RPM - reverse for low goal scoring
 
-// FRONT INDEXER speeds (velocity control maintains torque at all speeds)
-#define LEFT_INDEXER_FRONT_COLLECTION_SPEED     -550    // RPM - controlled speed with full torque
-#define LEFT_INDEXER_FRONT_MID_GOAL_SPEED        300    // RPM - precise speed for mid goal
-#define LEFT_INDEXER_FRONT_TOP_GOAL_SPEED       -350    // RPM - higher speed for top scoring
+// LEFT INDEXER speeds (middle left wheel via PTO)
+// IN = toward robot center/storage, OUT = toward front goal
+#define LEFT_IN_FAST      -550     // RPM - fast movement toward storage
+#define LEFT_IN_MID       -300     // RPM - medium speed toward storage
+#define LEFT_OUT_FAST    550     // RPM - fast movement toward front goal
 
-// BACK INDEXER speeds (when left indexer helps back scoring)
-#define LEFT_INDEXER_BACK_COLLECTION_SPEED       150     // RPM - helper speed with full torque
-#define LEFT_INDEXER_BACK_MID_GOAL_SPEED        -550     // RPM - mid goal helper with full torque
-#define LEFT_INDEXER_BACK_IMMEDIATE_SPEED       400      // RPM - immediate mode helper
-#define LEFT_INDEXER_BACK_TOP_GOAL_SPEED        -350     // RPM - top goal helper with full torque
-#define RIGHT_INDEXER_COLLECTION_SPEED         -350     // RPM - back collection mode
-#define RIGHT_INDEXER_MID_GOAL_SPEED           500      // RPM - back mid goal mode  
-#define RIGHT_INDEXER_IMMEDIATE_SPEED          -400     // RPM - back immediate mode
-#define RIGHT_INDEXER_TOP_GOAL_SPEED           -550     // RPM - back top goal mode (high speed)
-#define RIGHT_INDEXER_TOP_GOAL_HELPER_SPEED    -350     // RPM - slower feeding speed with full torque
-
-// TOP INDEXER speeds
-#define TOP_INDEXER_FRONT_SPEED                400      // RPM - front scoring speed
-#define TOP_INDEXER_BACK_SPEED                -400      // RPM - back scoring speed (opposite)
-
-// STORAGE MODE speeds - for moving balls from top storage toward goals
-#define TOP_INDEXER_STORAGE_TO_FRONT_SPEED     200      // RPM - storage to front with full torque
-#define TOP_INDEXER_STORAGE_TO_BACK_SPEED     -200      // RPM - storage to back with full torque
-
-// LEFT INDEXER speeds when scoring FROM storage (opposite of collection direction)
-#define LEFT_INDEXER_STORAGE_TO_FRONT_SPEED    300      // RPM - help move balls from storage toward front
-#define LEFT_INDEXER_STORAGE_TO_BACK_SPEED     550      // RPM - help move balls from storage toward back
+// RIGHT INDEXER speeds (middle right wheel via PTO)
+// IN = toward robot center/storage, OUT = toward back goal
+#define RIGHT_IN_FAST    350     // RPM - fast movement toward storage
+#define RIGHT_OUT_FAST   -500     // RPM - fast movement toward back goal
 
 // =============================================================================
 // AUTONOMOUS SYSTEM CONFIGURATION
@@ -297,7 +276,8 @@ enum class AutoMode {
     TEST_TURN = 11,
     TEST_NAVIGATION = 12,
     TEST_ODOMETRY = 13,
-    TEST_MOTORS = 14
+    TEST_MOTORS = 14,
+    TEST_COLOR_SORTER = 15
 };
 
 #endif // _CONFIG_H_

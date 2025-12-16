@@ -8,8 +8,8 @@
 #ifndef _INDEXER_H_
 #define _INDEXER_H_
 
-#include "api.h"
-#include "config.h"
+#include "pros/adi.hpp"
+#include "pros/motors.hpp"
 #include "pto.h"
 
 /**
@@ -47,7 +47,6 @@ class IndexerSystem {
 private:
     // Motors
     pros::Motor input_motor;        ///< 11W motor for ball intake at bottom
-    pros::Motor top_indexer;        ///< Top indexer motor (shared between front/back top scoring)
     
     // Pneumatic systems
     pros::adi::Pneumatics front_flap;  ///< Pneumatic control for front scoring flap
@@ -64,7 +63,6 @@ private:
     uint32_t scoring_start_time;    ///< Time when scoring sequence started
     uint32_t input_start_time;      ///< Time when input motor started
     bool input_motor_active;        ///< True when input motor is running
-    bool score_from_top_storage;    ///< True when scoring from top storage is enabled
     bool front_flap_open;           ///< True when front flap is open (manual tracking)
     
     // Button state tracking (for edge detection)
@@ -74,7 +72,6 @@ private:
     bool last_top_goal_button;
     bool last_front_execute_button;
     bool last_back_execute_button;
-    bool last_storage_toggle_button;
     bool last_front_flap_toggle_button;  ///< For direct front flap control
 
     // Display management
@@ -163,6 +160,15 @@ public:
     void stopAll();
 
     /**
+     * Run a scoring sequence for autonomous routines.
+     * @param mode Scoring mode to select before execution.
+     * @param direction Execution direction to use.
+     * @param runtime_ms How long to keep the sequence running before optional stop.
+     * @param stop_after When true stopAll() is called after the runtime delay.
+     */
+    void runAutonomousScore(ScoringMode mode, ExecutionDirection direction, uint32_t runtime_ms, bool stop_after = true);
+
+    /**
      * Get current scoring mode
      * @return Current scoring mode
      */
@@ -236,23 +242,6 @@ public:
      */
     void stopRightIndexer();
 
-    /**
-     * Toggle score from top storage mode on/off
-     */
-    void toggleStorageMode();
-
-    /**
-     * Get current storage mode state
-     * @return True if scoring from top storage is enabled
-     */
-    bool isStorageModeActive() const;
-
-    /**
-     * Verify PTO is in correct mode for storage operations
-     * @return True if PTO is ready for storage operations
-     */
-    bool verifyPTOForStorage();
-
 private:
     /**
      * Run left indexer (left middle motor via PTO) for front operations
@@ -267,33 +256,34 @@ private:
     void runRightIndexer(int speed);
 
     /**
-     * Run top indexer motor (shared for front/back top scoring)
-     * @param speed Motor speed in RPM (positive or negative)
-     */
-    void runTopIndexer(int speed);
-
-    /**
-     * Stop top indexer motor
-     */
-    void stopTopIndexer();
-
-    /**
      * Format mode for compact display
-     * @return Single character representing mode
+     * @return Single character or symbol representing mode
      */
-    char getModeChar() const;
+    const char* getModeSymbol() const;
 
     /**
      * Format direction for compact display  
-     * @return Single character representing direction
+     * @return Single character or symbol representing direction
      */
-    char getDirectionChar() const;
+    const char* getDirectionSymbol() const;
 
     /**
      * Format status icon for display
      * @return Status symbol character
      */
-    char getStatusIcon() const;
+    const char* getStatusSymbol() const;
+
+    /**
+     * Get flap status icon for display
+     * @return Flap status symbol character
+     */
+    const char* getFlapStatusIcon() const;
+
+    /**
+     * Get storage visual representation
+     * @return String showing storage ball count visually
+     */
+    const char* getStorageVisual() const;
 };
 
 #endif // _INDEXER_H_

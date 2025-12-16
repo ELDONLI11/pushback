@@ -61,9 +61,7 @@ void AutonomousSystem::executeRedRightAWP() {
     chassis_turn->waitUntilDone();
 
 
-    indexer_system->setMidGoalMode();
-    indexer_system->executeBack();
-    pros::delay(2000);
+    indexer_system->runAutonomousScore(ScoringMode::MID_GOAL, ExecutionDirection::BACK, 2000, false);
 
 
     //Deploy matchloader
@@ -92,9 +90,7 @@ void AutonomousSystem::executeRedRightAWP() {
     
 
 
-    indexer_system->setTopGoalMode();
-    indexer_system->toggleStorageMode();
-    indexer_system->executeBack();
+    indexer_system->runAutonomousScore(ScoringMode::TOP_GOAL, ExecutionDirection::BACK, 1200);
     
     //Move into matchloader
     // brief pause for scoring
@@ -228,7 +224,7 @@ void AutonomousSystem::executeRedRightAWP() {
 
     pros::delay(50);
 
-    // TOP BACKSCORING - use back/top indexer (same as Red Right)
+    // TOP BACKSCORING - use back storage feed with right indexer (same as Red Right)
     indexer_system->setTopGoalMode();
     indexer_system->executeBack();
     pros::delay(1200);

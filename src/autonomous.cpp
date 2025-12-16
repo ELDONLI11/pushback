@@ -7,6 +7,7 @@
 
 #include "autonomous.h"
 #include "lemlib_config.h"
+#include "color_sensor.h"
 #include <utility>
 #include <cmath>  // For cos, sin functions
 
@@ -70,11 +71,12 @@ void AutoSelector::displayOptions() {
         "Blue Left AWP",         // 7
         "Blue Right AWP",        // 8
         "Skills",                // 9
-        "Test: Drive",           // 10 - This is the auto test mode
+        "Test: Drive",           // 10
         "Test: Turn",            // 11
         "Test: Navigation",      // 12
         "Test: Odometry",        // 13
-        "Test: Motors"           // 14
+        "Test: Motors",          // 14
+        "Test: Color Sorter"     // 15
     };
     
     // Display on controller screen only
@@ -105,13 +107,13 @@ void AutoSelector::handleInput() {
         // Navigation mode
         if (left_pressed || down_pressed) {
             selector_position--;
-            if (selector_position < 0) selector_position = 14;  // EXPANDED: Now goes to 14
+            if (selector_position < 0) selector_position = 15;  // EXPANDED: Now goes to 15
             printf("Selected mode: %d\n", selector_position);
         }
         
         if (right_pressed || up_pressed) {
             selector_position++;
-            if (selector_position > 14) selector_position = 0;  // EXPANDED: Now supports 0-14
+            if (selector_position > 15) selector_position = 0;  // EXPANDED: Now supports 0-15
             printf("Selected mode: %d\n", selector_position);
         }
         
@@ -136,7 +138,8 @@ void AutoSelector::handleInput() {
                 "TEST_TURN",                  // 11
                 "TEST_NAVIGATION",            // 12
                 "TEST_ODOMETRY",              // 13
-                "TEST_MOTORS"                 // 14
+                "TEST_MOTORS",                // 14
+                "TEST_COLOR_SORTER"           // 15
             };
             printf("Mode: %s\n", mode_names[selector_position]);
         }
@@ -275,10 +278,7 @@ void AutonomousSystem::executeRedLeftBonus() {
     chassis->waitUntilDone();
 
     // FAST AWP SCORING
-    indexer_system->setMidGoalMode();
-    indexer_system->executeBack();
-    pros::delay(600); // Shorter delay for speed
-    indexer_system->stopAll();
+    indexer_system->runAutonomousScore(ScoringMode::MID_GOAL, ExecutionDirection::BACK, 600);
 
     printf("BONUS Phase 2: Maximum point collection\n");
     
@@ -300,10 +300,7 @@ void AutonomousSystem::executeRedLeftBonus() {
     chassis->waitUntilDone();
     
     // BONUS: Additional scoring opportunity
-    indexer_system->setMidGoalMode();
-    indexer_system->executeBack();
-    pros::delay(500); // Quick score
-    indexer_system->stopAll();
+    indexer_system->runAutonomousScore(ScoringMode::MID_GOAL, ExecutionDirection::BACK, 500);
     
     // Continue to match load zone faster (mirror of 225° → 315°)
     chassis->turnToHeading(315, 2000);
@@ -328,10 +325,7 @@ void AutonomousSystem::executeRedLeftBonus() {
     chassis->waitUntilDone();
 
     // FINAL HIGH-VALUE SCORING
-    indexer_system->setTopGoalMode();
-    indexer_system->executeBack();
-    pros::delay(1000); // Ensure all blocks are scored
-    indexer_system->stopAll();
+    indexer_system->runAutonomousScore(ScoringMode::TOP_GOAL, ExecutionDirection::BACK, 1000);
 
     printf("Left BONUS Complete!\n");
     autonomous_running = false;
@@ -367,10 +361,7 @@ void AutonomousSystem::executeRedLeftAWP() {
     chassis->waitUntilDone();
 
     // BACKSCORING MIDDLE - execute indexer back scoring sequence
-    indexer_system->setMidGoalMode();
-    indexer_system->executeBack();
-    pros::delay(700); // brief pause for scoring
-    indexer_system->stopAll();
+    indexer_system->runAutonomousScore(ScoringMode::MID_GOAL, ExecutionDirection::BACK, 700);
 
     pros::delay(50);
     
@@ -415,11 +406,8 @@ void AutonomousSystem::executeRedLeftAWP() {
 
     pros::delay(50);
 
-    // TOP BACKSCORING - use back/top indexer
-    indexer_system->setTopGoalMode();
-    indexer_system->executeBack();
-    pros::delay(1200);
-    indexer_system->stopAll();
+    // TOP BACKSCORING - use back storage feed with right indexer
+    indexer_system->runAutonomousScore(ScoringMode::TOP_GOAL, ExecutionDirection::BACK, 1200);
 
     printf("Red Right AWP finished!\n");
 
@@ -453,10 +441,7 @@ void AutonomousSystem::executeRedRightBonus() {
     chassis->waitUntilDone();
 
     // FAST AWP SCORING
-    indexer_system->setMidGoalMode();
-    indexer_system->executeBack();
-    pros::delay(600); // Shorter delay for speed
-    indexer_system->stopAll();
+    indexer_system->runAutonomousScore(ScoringMode::MID_GOAL, ExecutionDirection::BACK, 600);
 
     printf("BONUS Phase 2: Maximum point collection\n");
     
@@ -477,10 +462,7 @@ void AutonomousSystem::executeRedRightBonus() {
     chassis->waitUntilDone();
     
     // BONUS: Additional scoring opportunity
-    indexer_system->setMidGoalMode();
-    indexer_system->executeBack();
-    pros::delay(500); // Quick score
-    indexer_system->stopAll();
+    indexer_system->runAutonomousScore(ScoringMode::MID_GOAL, ExecutionDirection::BACK, 500);
     
     // Continue to match load zone faster
     chassis->turnToHeading(225, 2000);
@@ -504,10 +486,7 @@ void AutonomousSystem::executeRedRightBonus() {
     chassis->waitUntilDone();
 
     // FINAL HIGH-VALUE SCORING
-    indexer_system->setTopGoalMode();
-    indexer_system->executeBack();
-    pros::delay(1000); // Ensure all blocks are scored
-    indexer_system->stopAll();
+    indexer_system->runAutonomousScore(ScoringMode::TOP_GOAL, ExecutionDirection::BACK, 1000);
 
     printf("BONUS Route Complete!\n");
     autonomous_running = false;
@@ -851,21 +830,12 @@ void AutonomousSystem::runAutonomous() {
         }
             
         case AutoMode::TEST_TURN:
-            printf("🔄 TEST: Turn 90 degrees\n");
-            printf("Current PID gains: P=%.2f, I=%.3f, D=%.2f\n", TURN_KP, TURN_KI, TURN_KD);
-            testTurnAccuracy(90.0);   // Test 90° turn
-            break;
-            
         case AutoMode::TEST_NAVIGATION:
-            testPointToPoint();       // Test navigation accuracy
-            break;
-            
         case AutoMode::TEST_ODOMETRY:
-            testOdometryAccuracy();   // Test odometry with manual verification
-            break;
-            
         case AutoMode::TEST_MOTORS:
-            testMotorIdentification(); // Test which physical motor corresponds to each port
+        case AutoMode::TEST_COLOR_SORTER:
+            // Use central test runner from system_tests.cpp
+            ::runTest(mode, chassis);
             break;
             
         case AutoMode::DISABLED:
@@ -873,249 +843,4 @@ void AutonomousSystem::runAutonomous() {
             printf("Autonomous disabled or invalid mode\n");
             break;
     }
-}
-
-// =============================================================================
-// Testing and Calibration Functions
-// =============================================================================
-
-void AutonomousSystem::testStraightDrive(double distance) {
-    printf("=== STRAIGHT DRIVE TEST (LemLib) ===\n");
-    printf("Target distance: %.2f inches\n", distance);
-    
-    // Reset position for clean test
-    chassis->setPose(0, 0, 0);
-    auto start_pose = chassis->getPose();
-    printf("Starting position: (%.2f, %.2f, %.2f°)\n", 
-           start_pose.x, start_pose.y, start_pose.theta);
-    
-    // Drive straight
-    uint32_t start_time = pros::millis();
-    chassis->moveToPoint(distance, 0, 5000);  // Drive to (distance, 0)
-    chassis->waitUntilDone();
-    uint32_t end_time = pros::millis();
-    
-    // Check results
-    auto final_pose = chassis->getPose();
-    double actual_distance = sqrt(final_pose.x * final_pose.x + final_pose.y * final_pose.y);
-    double distance_error = actual_distance - distance;
-    double heading_error = final_pose.theta;
-    
-    printf("=== RESULTS ===\n");
-    printf("Target: %.2f inches\n", distance);
-    printf("Actual: %.2f inches\n", actual_distance);
-    printf("Error: %.2f inches (%.1f%%)\n", distance_error, (distance_error/distance)*100);
-    printf("Heading drift: %.2f degrees\n", heading_error);
-    printf("Time taken: %d ms\n", end_time - start_time);
-    
-    if (fabs(distance_error) < 1.0 && fabs(heading_error) < 3.0) {
-        printf("✅ PASS: Drive accuracy acceptable\n");
-        printf("   LemLib tuning looks good!\n");
-    } else {
-        printf("❌ FAIL: Needs calibration\n");
-        if (fabs(distance_error) >= 1.0) {
-            printf("   📏 Distance error too large (%.2f\")\n", distance_error);
-            printf("   Check LemLib movement constants in lemlib_config.cpp\n");
-        }
-        if (fabs(heading_error) >= 3.0) {
-            printf("   🧭 Heading drift too large (%.2f°)\n", heading_error);
-            printf("   Check IMU calibration or LemLib angular constants\n");
-        }
-    }
-}
-
-void AutonomousSystem::testTurnAccuracy(double angle) {
-    printf("=== TURN ACCURACY TEST (LemLib) ===\n");
-    printf("Target angle: %.2f degrees\n", angle);
-    
-    // Reset position
-    chassis->setPose(0, 0, 0);
-    
-    // Perform turn
-    uint32_t start_time = pros::millis();
-    chassis->turnToHeading(angle, 3000);
-    chassis->waitUntilDone();
-    uint32_t end_time = pros::millis();
-    
-    // Check results
-    auto final_pose = chassis->getPose();
-    double angle_error = final_pose.theta - angle;
-    
-    printf("=== RESULTS ===\n");
-    printf("Target: %.2f degrees\n", angle);
-    printf("Actual: %.2f degrees\n", final_pose.theta);
-    printf("Error: %.2f degrees\n", angle_error);
-    printf("Time taken: %d ms\n", end_time - start_time);
-    
-    if (fabs(angle_error) < 2.0) {
-        printf("✅ PASS: Turn accuracy acceptable\n");
-        printf("   LemLib angular tuning looks good!\n");
-    } else {
-        printf("❌ FAIL: Needs tuning\n");
-        printf("   🔄 Turn error: %.2f degrees\n", angle_error);
-        printf("   Check LemLib angular constants in lemlib_config.cpp\n");
-        
-        if (end_time - start_time > 3000) {
-            printf("   Slow response - check angular motion constants\n");
-        }
-    }
-}
-
-void AutonomousSystem::testPointToPoint() {
-    printf("=== POINT-TO-POINT NAVIGATION TEST (LemLib) ===\n");
-    
-    // Define test waypoints (square pattern)
-    struct TestPoint {
-        double x, y;
-    };
-    
-    TestPoint waypoints[] = {
-        {0, 0},      // Start
-        {24, 0},     // Point 1: 24" forward
-        {24, 24},    // Point 2: 24" right  
-        {0, 24},     // Point 3: 24" back
-        {0, 0}       // Return to start
-    };
-    
-    chassis->setPose(0, 0, 0);
-    
-    uint32_t total_start_time = pros::millis();
-    
-    for (int i = 1; i < 5; i++) {
-        printf("Moving to waypoint %d: (%.0f, %.0f)\n", 
-               i, waypoints[i].x, waypoints[i].y);
-        
-        chassis->moveToPoint(waypoints[i].x, waypoints[i].y, 5000);
-        chassis->waitUntilDone();
-        
-        auto current_pose = chassis->getPose();
-        double error = sqrt(pow(current_pose.x - waypoints[i].x, 2) + 
-                           pow(current_pose.y - waypoints[i].y, 2));
-        
-        printf("Reached: (%.2f, %.2f) - Error: %.2f inches\n", 
-               current_pose.x, current_pose.y, error);
-        
-        pros::delay(1000);  // Pause between waypoints
-    }
-    
-    uint32_t total_end_time = pros::millis();
-    
-    // Final accuracy check
-    auto final_pose = chassis->getPose();
-    double return_error = sqrt(final_pose.x * final_pose.x + final_pose.y * final_pose.y);
-    
-    printf("=== RESULTS ===\n");
-    printf("Return to start error: %.2f inches\n", return_error);
-    printf("Total test time: %d ms\n", total_end_time - total_start_time);
-    
-    if (return_error < 3.0) {
-        printf("✅ PASS: Navigation system working well\n");
-        printf("   LemLib odometry is accurate!\n");
-    } else {
-        printf("❌ FAIL: Navigation needs calibration\n");
-        printf("   Return error: %.2f inches\n", return_error);
-        printf("   Check LemLib tracking wheels and constants\n");
-    }
-}
-
-void AutonomousSystem::testOdometryAccuracy() {
-    printf("=== ODOMETRY ACCURACY TEST (LemLib) ===\n");
-    printf("This test requires manual measurement!\n");
-    printf("1. Mark robot's current position\n");
-    printf("2. Press any controller button to continue...\n");
-    
-    // Wait for controller input
-    pros::Controller controller(pros::E_CONTROLLER_MASTER);
-    while (!controller.get_digital(pros::E_CONTROLLER_DIGITAL_A) &&
-           !controller.get_digital(pros::E_CONTROLLER_DIGITAL_B) &&
-           !controller.get_digital(pros::E_CONTROLLER_DIGITAL_X) &&
-           !controller.get_digital(pros::E_CONTROLLER_DIGITAL_Y)) {
-        pros::delay(20);
-    }
-    
-    chassis->setPose(0, 0, 0);
-    printf("Position reset to (0, 0, 0°)\n");
-    
-    // Move in a complex pattern
-    chassis->moveToPoint(18, 0, 5000);     // Forward 18"
-    chassis->waitUntilDone();
-    chassis->moveToPoint(18, 12, 5000);    // Right 12"
-    chassis->waitUntilDone();
-    chassis->moveToPoint(6, 12, 5000);     // Back 12"
-    chassis->waitUntilDone();
-    chassis->moveToPoint(6, 6, 5000);      // Back 6"
-    chassis->waitUntilDone();
-    chassis->moveToPoint(0, 6, 5000);      // Left 6"
-    chassis->waitUntilDone();
-    chassis->moveToPoint(0, 0, 5000);      // Return to start
-    chassis->waitUntilDone();
-    
-    auto final_pose = chassis->getPose();
-    printf("=== FINAL POSITION ===\n");
-    printf("LemLib odometry says: (%.2f, %.2f, %.2f°)\n", 
-           final_pose.x, final_pose.y, final_pose.theta);
-    printf("Manually measure distance from starting mark.\n");
-    printf("Good accuracy: < 2 inches from start\n");
-}
-
-void AutonomousSystem::testMotorIdentification() {
-    printf("=== MOTOR IDENTIFICATION TEST ===\n");
-    printf("This will help identify which physical motor corresponds to each port\n");
-    printf("Watch the robot carefully and note which motor spins for each test!\n");
-    
-    // Test each motor for 2 seconds at low speed
-    int test_speed = 50; // Low speed for safety
-    int test_duration = 2000; // 2 seconds
-    
-    printf("\n1. Testing RIGHT_FRONT_MOTOR_PORT (port %d)...\n", RIGHT_FRONT_MOTOR_PORT);
-    printf("   Watch which physical motor spins!\n");
-    pros::Motor right_front_test(RIGHT_FRONT_MOTOR_PORT, pros::v5::MotorGears::blue);
-    right_front_test.move(test_speed);
-    pros::delay(test_duration);
-    right_front_test.move(0);
-    printf("   RIGHT_FRONT_MOTOR_PORT test complete.\n");
-    pros::delay(1000);
-    
-    printf("\n2. Testing RIGHT_MIDDLE_MOTOR_PORT (port %d)...\n", RIGHT_MIDDLE_MOTOR_PORT);
-    printf("   Watch which physical motor spins!\n");
-    pros::Motor right_middle_test(RIGHT_MIDDLE_MOTOR_PORT, pros::v5::MotorGears::blue);
-    right_middle_test.move(test_speed);
-    pros::delay(test_duration);
-    right_middle_test.move(0);
-    printf("   RIGHT_MIDDLE_MOTOR_PORT test complete.\n");
-    pros::delay(1000);
-    
-    printf("\n3. Testing RIGHT_BACK_MOTOR_PORT (port %d)...\n", RIGHT_BACK_MOTOR_PORT);
-    printf("   Watch which physical motor spins!\n");
-    pros::Motor right_back_test(RIGHT_BACK_MOTOR_PORT, pros::v5::MotorGears::blue);
-    right_back_test.move(test_speed);
-    pros::delay(test_duration);
-    right_back_test.move(0);
-    printf("   RIGHT_BACK_MOTOR_PORT test complete.\n");
-    pros::delay(1000);
-    
-    printf("\n=== NOW TESTING runRightIndexer() FUNCTION ===\n");
-    printf("This simulates what happens when you do top back scoring...\n");
-    
-    // Simulate the exact code from runRightIndexer()
-    int scoring_speed = -127; // Same as RIGHT_INDEXER_TOP_GOAL_SPEED
-    printf("Creating motor object with RIGHT_MIDDLE_MOTOR_PORT (%d)...\n", RIGHT_MIDDLE_MOTOR_PORT);
-    
-    pros::Motor right_middle_scoring(RIGHT_MIDDLE_MOTOR_PORT, pros::v5::MotorGears::blue);
-    
-    printf("Running motor at speed %d for 3 seconds...\n", scoring_speed);
-    printf("This should move the SAME motor as test #2 above!\n");
-    
-    right_middle_scoring.move(scoring_speed);
-    pros::delay(3000);
-    right_middle_scoring.move(0);
-    
-    printf("\n=== TEST COMPLETE ===\n");
-    printf("RESULTS ANALYSIS:\n");
-    printf("- RIGHT_FRONT_MOTOR_PORT (%d) moved which physical position? (front/middle/back)\n", RIGHT_FRONT_MOTOR_PORT);
-    printf("- RIGHT_MIDDLE_MOTOR_PORT (%d) moved which physical position? (front/middle/back)\n", RIGHT_MIDDLE_MOTOR_PORT);
-    printf("- RIGHT_BACK_MOTOR_PORT (%d) moved which physical position? (front/middle/back)\n", RIGHT_BACK_MOTOR_PORT);
-    printf("\nThe motor that should be disconnected by PTO is the physically MIDDLE one!\n");
-    printf("If runRightIndexer() moved a motor that's still connected to drivetrain,\n");
-    printf("then we need to fix the port assignments in config.h\n");
 }

@@ -1,8 +1,22 @@
-# Color Sensing and Sorting System
+# Color Sensing and Sorting System with Storage Integration
 
 ## Overview
 
-The color sensing and sorting system automatically detects ball colors using two V5 optical sensors and ejects undesired colored balls through a pneumatic mechanism positioned at the back mid out location.
+The color sensing and sorting system automatically detects ball colors using two V5 optical sensors and ejects undesired colored balls through the **BACK MID GOAL**. Desired balls are automatically added to the storage count system, ensuring only the correct color balls reach the 3-ball storage limit.
+
+## Key Features ⭐ **NEW**
+
+### Automatic Storage Integration
+- **Desired balls**: Automatically counted toward storage (max 3 balls)
+- **Unwanted balls**: Ejected via mid goal, do NOT count toward storage
+- **Smart counting**: Only balls that pass through sensors without ejection are stored
+- **Storage protection**: System respects 3-ball storage limit during sorting
+
+### Mid Goal Ejection System
+- **Ejection method**: BACK MID GOAL scoring (not pneumatic)
+- **State preservation**: Returns to previous indexer operation after ejection
+- **Conflict prevention**: Won't eject if indexer is busy with other operations
+- **Timing control**: Adjustable ejection duration (300ms - 800ms)
 
 ## Hardware Configuration
 
@@ -10,14 +24,10 @@ The color sensing and sorting system automatically detects ball colors using two
 - **Color Sensor 1** (Port 5): Entry detection sensor - first sensor to detect incoming balls
 - **Color Sensor 2** (Port 11): Confirmation sensor - validates color and tracks ball direction
 
-### Pneumatics
-- **Ball Ejection Solenoid** (ADI Port C): Pneumatic cylinder that pushes balls out from the back mid position
-
-### Sensor Placement
-The sensors should be positioned:
-1. **Sensor 1**: At the ball intake entry point
-2. **Sensor 2**: Further along the ball path, near the ejection mechanism
-3. **Ejection Mechanism**: Positioned to push balls out from the back mid area
+### Integration Points
+- **Indexer System**: For mid goal ejection and storage counting
+- **PTO System**: Must be in scorer mode for ejection to work
+- **Storage System**: Automatic ball counting and limit enforcement
 
 ## Controller Controls
 
@@ -34,20 +44,22 @@ The sensors should be positioned:
 - Controller display shows current sorting mode
 - Console output provides detailed status information
 
-## Sorting Modes
+## Sorting Modes with Storage Integration
 
 ### SortingMode::COLLECT_RED
-- **Keep**: Red balls
-- **Eject**: Blue balls
+- **Keep**: Red balls → **Added to storage count**
+- **Eject**: Blue balls → **Ejected via BACK MID GOAL** (no storage impact)
 - **Use Case**: Red alliance, collecting red balls for scoring
+- **Storage**: Only red balls count toward 3-ball limit
 
 ### SortingMode::COLLECT_BLUE  
-- **Keep**: Blue balls
-- **Eject**: Red balls
+- **Keep**: Blue balls → **Added to storage count**
+- **Eject**: Red balls → **Ejected via BACK MID GOAL** (no storage impact)
 - **Use Case**: Blue alliance, collecting blue balls for scoring
+- **Storage**: Only blue balls count toward 3-ball limit
 
 ### SortingMode::COLLECT_ALL
-- **Keep**: All balls
+- **Keep**: All balls → **All balls added to storage count**
 - **Eject**: None
 - **Use Case**: Sorting disabled, collect everything
 
